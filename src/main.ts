@@ -10,7 +10,14 @@ async function bootstrap() {
   // Get config service
   const config = app.get(ConfigService);
 
-  // Enable validation
+  // Enable CORS
+  if (config.corsEnabled) {
+    app.enableCors();
+    origin: config.corsOrigin;
+    credentials: config.corsCredentials;
+  }
+
+  // Global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // Strip unknown properties
@@ -25,6 +32,10 @@ async function bootstrap() {
     .setDescription('AI-Powered ERP Middleware')
     .setVersion('1.0')
     .addBearerAuth()
+    .addTag('Auth', 'Authentication endpoints')
+    .addTag('Tentants', 'Tenant management endpoints')
+    .addTag('Users', 'User management endpoints')
+    .addTag('Finance', 'Finance management endpoints')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api', app, document);
@@ -33,5 +44,6 @@ async function bootstrap() {
   await app.listen(config.port);
   console.log(` Application running on: http://localhost:${config.port}`);
   console.log(` Swagger docs: http://localhost:${config.port}/api`);
+  console.log('Multi-tenant mode: ENABLED (schema per tenant)');
 }
 bootstrap();

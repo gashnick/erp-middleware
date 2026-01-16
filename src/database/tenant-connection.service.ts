@@ -106,6 +106,34 @@ export class TenantConnectionService {
   }
 
   /**
+   * Create a new tenant schema with all tables within an existing transaction
+   *
+   * Used during atomic tenant creation to ensure schema creation
+   * is part of the same transaction as tenant record creation.
+   *
+   * @param queryRunner - Existing transactional QueryRunner
+   * @param tenantId - UUID of the tenant
+   * @throws BadRequestException if schema already exists
+   */
+  async createTenantSchemaTransactional(queryRunner: QueryRunner, tenantId: string): Promise<void> {
+    const schemaName = this.getSchemaName(tenantId);
+
+    // Check if schema already exists
+    const exists = await this.schemaExists(schemaName);
+    if (exists) {
+      throw new BadRequestException(`Tenant schema '${schemaName}' already exists`);
+    }
+
+    console.log(`Creating tenant schema transactionally: ${schemaName}`);
+
+    // Use the template to create schema within existing transaction
+    const template = new TenantSchemaTemplate();
+    await template.createSchema(queryRunner, schemaName);
+
+    console.log(`✅ Tenant schema '${schemaName}' created within transaction`);
+  }
+
+  /**
    * Delete a tenant schema and all its data
    *
    * ⚠️ DANGEROUS: This permanently deletes all tenant data!

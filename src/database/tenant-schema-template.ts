@@ -21,6 +21,23 @@ export class TenantSchemaTemplate {
     // Create schema
     await queryRunner.query(`CREATE SCHEMA IF NOT EXISTS ${schemaName};`);
 
+    // Grant schema access to tenant_schema_role for DB-level isolation
+    await queryRunner.query(`GRANT USAGE ON SCHEMA ${schemaName} TO tenant_schema_role;`);
+    await queryRunner.query(
+      `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA ${schemaName} TO tenant_schema_role;`,
+    );
+    await queryRunner.query(
+      `GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA ${schemaName} TO tenant_schema_role;`,
+    );
+
+    // Set default privileges for future tables
+    await queryRunner.query(
+      `ALTER DEFAULT PRIVILEGES IN SCHEMA ${schemaName} GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO tenant_schema_role;`,
+    );
+    await queryRunner.query(
+      `ALTER DEFAULT PRIVILEGES IN SCHEMA ${schemaName} GRANT USAGE, SELECT ON SEQUENCES TO tenant_schema_role;`,
+    );
+
     // Create invoices table
     await this.createInvoicesTable(queryRunner, schemaName);
 
@@ -36,7 +53,7 @@ export class TenantSchemaTemplate {
     // Create upload_batches table
     await this.createUploadBatchesTable(queryRunner, schemaName);
 
-    console.log(`✅ Tenant schema '${schemaName}' created successfully`);
+    console.log(`✅ Tenant schema '${schemaName}' created with role permissions`);
   }
 
   /**

@@ -1,9 +1,24 @@
 {
   "moduleFileExtensions": ["js", "json", "ts"],
-  "rootDir": ".",
+  "rootDir": "..",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^@config/(.*)$": "<rootDir>/src/config/$1",
+    "^@database/(.*)$": "<rootDir>/src/database/$1",
+    "^@auth/(.*)$": "<rootDir>/src/auth/$1",
+    "^@tenants/(.*)$": "<rootDir>/src/tenants/$1",
+    "^@users/(.*)$": "<rootDir>/src/users/$1",
+    "^@subscriptions/(.*)$": "<rootDir>/src/subscriptions/$1",
+    "^@connectors/(.*)$": "<rootDir>/src/connectors/$1",
+    "^@finance/(.*)$": "<rootDir>/src/finance/$1",
+    "^@dashboards/(.*)$": "<rootDir>/src/dashboards/$1",
+    "^@ai/(.*)$": "<rootDir>/src/ai/$1",
+    "^@chat/(.*)$": "<rootDir>/src/chat/$1",
+    "^@audit/(.*)$": "<rootDir>/src/audit/$1",
+    "^@common/(.*)$": "<rootDir>/src/common/$1"
   }
 }

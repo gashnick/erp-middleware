@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DatabaseService } from './database.service';
 import { ConfigModule } from '../config/config.module';
 import { TenantConnectionService } from './tenant-connection.service';
+import { TenantMigrationRunnerService } from './tenant-migration-runner.service';
 
 const ormOptions = {
   type: 'postgres',
@@ -32,7 +33,7 @@ const ormOptions = {
 
 @Module({
   imports: [ConfigModule, TypeOrmModule.forRoot(ormOptions)],
-  providers: [DatabaseService, TenantConnectionService],
-  exports: [DatabaseService, TenantConnectionService, TypeOrmModule],
+  providers: [DatabaseService, TenantConnectionService, TenantMigrationRunnerService],
+  exports: [DatabaseService, TenantConnectionService, TenantMigrationRunnerService, TypeOrmModule],
 })
 export class DatabaseModule {}

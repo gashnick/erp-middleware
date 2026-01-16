@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Tenant } from './entities/tenant.entity';
 import { CreateTenantDto, UpdateTenantDto } from './dto/create-tenant.dto';
 import { TenantConnectionService } from '../database/tenant-connection.service';
@@ -28,51 +28,65 @@ export class TenantsService {
     @InjectRepository(Tenant)
     private readonly tenantsRepository: Repository<Tenant>,
     private readonly tenantConnection: TenantConnectionService,
+    private readonly dataSource: DataSource,
   ) {}
 
   /**
-   * Create a new tenant
+   * Create a new tenant atomically
    *
-   * This is a two-step process:
-   * 1. Create tenant record in public.tenants
-   * 2. Create tenant schema with all tables
+   * ATOMIC TRANSACTION: create tenant record → generate schema → run migrations → commit
+   * If any step fails, complete rollback occurs.
    *
    * @param dto - Tenant creation data
    * @returns Created tenant
    */
   async create(dto: CreateTenantDto): Promise<Tenant> {
-    // Generate schema name (tenant_<uuid> will be auto-generated)
-    // We'll get the UUID from the saved record
-    const schemaName = ''; // Temporary, will be set after save
+    const queryRunner = this.dataSource.createQueryRunner();
 
-    // Create tenant record
-    const tenant = this.tenantsRepository.create({
-      companyName: dto.companyName,
-      dataSourceType: dto.dataSourceType,
-      subscriptionPlan: dto.subscriptionPlan,
-      schemaName: schemaName, // Placeholder
-      status: 'active',
-      planLimits: this.getDefaultPlanLimits(dto.subscriptionPlan),
-    });
-
-    // Save to get UUID
-    const savedTenant = await this.tenantsRepository.save(tenant);
-
-    // Update schema name with actual UUID
-    savedTenant.schemaName = `tenant_${savedTenant.id.replace(/-/g, '')}`;
-    await this.tenantsRepository.save(savedTenant);
-
-    // Create tenant schema
     try {
-      await this.createSchema(savedTenant.id);
-    } catch (error) {
-      // If schema creation fails, rollback tenant creation
-      await this.tenantsRepository.delete(savedTenant.id);
-      throw new BadRequestException(`Failed to create tenant schema: ${error.message}`);
-    }
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
 
-    console.log(`✅ Tenant created: ${savedTenant.id} (${savedTenant.companyName})`);
-    return savedTenant;
+      console.log(`🚀 Starting atomic tenant creation: ${dto.companyName}`);
+
+      // Step 1: Create tenant record in transaction
+      const tenant = this.tenantsRepository.create({
+        companyName: dto.companyName,
+        dataSourceType: dto.dataSourceType,
+        subscriptionPlan: dto.subscriptionPlan,
+        schemaName: '', // Will be set after UUID generation
+        status: 'active',
+        planLimits: this.getDefaultPlanLimits(dto.subscriptionPlan),
+      });
+
+      // Save within transaction to get UUID
+      const savedTenant = await queryRunner.manager.save(Tenant, tenant);
+
+      // Generate schema name from UUID
+      savedTenant.schemaName = `tenant_${savedTenant.id.replace(/-/g, '')}`;
+
+      // Update schema name within transaction
+      await queryRunner.manager.save(Tenant, savedTenant);
+
+      // Step 2: Create tenant schema within transaction
+      await this.createSchemaTransactional(queryRunner, savedTenant.id);
+
+      // Step 3: Run migrations on tenant schema (if any)
+      // Future: Add tenant-specific migrations here
+
+      // Step 4: Commit transaction
+      await queryRunner.commitTransaction();
+
+      console.log(`✅ Tenant created atomically: ${savedTenant.id} (${savedTenant.companyName})`);
+      return savedTenant;
+    } catch (error) {
+      // Rollback on any error
+      await queryRunner.rollbackTransaction();
+      console.error(`❌ Tenant creation failed, rolled back: ${error.message}`, error.stack);
+      throw new BadRequestException(`Failed to create tenant: ${error.message}`);
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   /**
@@ -197,6 +211,19 @@ export class TenantsService {
     await this.tenantConnection.createTenantSchema(tenantId);
 
     console.log(`✅ Schema created for tenant: ${tenant.id} (${tenant.schemaName})`);
+  }
+
+  /**
+   * Create tenant schema within a transaction
+   *
+   * Used during atomic tenant creation to ensure schema creation
+   * is part of the same transaction as tenant record creation.
+   *
+   * @param queryRunner - Transactional QueryRunner
+   * @param tenantId - Tenant UUID
+   */
+  private async createSchemaTransactional(queryRunner: any, tenantId: string): Promise<void> {
+    await this.tenantConnection.createTenantSchemaTransactional(queryRunner, tenantId);
   }
 
   /**
