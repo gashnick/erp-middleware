@@ -8,7 +8,7 @@ import { AsyncLocalStorage } from 'async_hooks';
  * Stored in AsyncLocalStorage for automatic propagation through async calls.
  */
 export interface TenantContext {
-  tenantId: string;
+  tenantId: string | null;
   userId: string;
   requestId: string;
   schemaName: string;
@@ -46,7 +46,7 @@ export function getTenantContext(): TenantContext {
 /**
  * Get tenant ID from current context.
  */
-export function getTenantId(): string {
+export function getTenantId(): string | null {
   return getTenantContext().tenantId;
 }
 

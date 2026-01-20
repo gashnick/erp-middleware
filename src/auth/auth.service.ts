@@ -1,50 +1,83 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { JwtService } from '@nestjs/jwt';
+import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
-import { User } from '../users/entities/user.entity';
-import { LoginDto } from './dto/login.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { RefreshToken } from './entities/refresh-token.entity';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(User)
-    private readonly usersRepository: Repository<User>,
+    private usersService: UsersService,
+    private jwtService: JwtService,
+    @InjectRepository(RefreshToken)
+    private readonly refreshTokenRepo: Repository<RefreshToken>,
   ) {}
 
-  async login(dto: LoginDto): Promise<{ access_token: string; user: User }> {
-    // Find user by email
-    const user = await this.usersRepository.findOne({
-      where: { email: dto.email },
-      relations: ['tenant'],
-    });
+  async validateUser(email: string, pass: string, tenantIdHeader?: string): Promise<any> {
+    // 1. Find User
+    // We filter by email. Since emails are unique per tenant,
+    // we should ideally filter by tenantId too if provided.
+    const user = await this.usersService.findByEmail(email);
 
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+    // 2. Validate Tenant Scope (Crucial for Multi-tenancy)
+    if (user && tenantIdHeader && user.tenant_id !== tenantIdHeader) {
+      throw new UnauthorizedException('User does not belong to this tenant');
     }
 
-    // Check if user is active
-    if (user.status !== 'active') {
-      throw new UnauthorizedException('Account is not active');
+    // 3. Check Password
+    if (user && (await bcrypt.compare(pass, user.password_hash))) {
+      const { password_hash, ...result } = user;
+      return result;
     }
 
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
+    return null;
+  }
 
-    // Update last login
-    user.lastLoginAt = new Date();
-    await this.usersRepository.save(user);
-
-    // For now, return a mock JWT token
-    // In a real implementation, you'd use @nestjs/jwt to generate a proper token
-    const mockToken = `mock-jwt-${user.id}-${Date.now()}`;
+  async login(user: any) {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenant_id, // CRITICAL: Embeds context in token
+    };
 
     return {
-      access_token: mockToken,
-      user,
+      access_token: this.jwtService.sign(payload),
+      user: {
+        id: user.id,
+        email: user.email,
+        tenantId: user.tenant_id,
+      },
+    };
+  }
+
+  async generateTenantSession(userId: string) {
+    // No more second argument error!
+    const user = await this.usersService.findById(userId);
+
+    if (!user.tenant_id) {
+      throw new UnauthorizedException('User not linked to a tenant yet');
+    }
+
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenant_id,
+      // Use the alias we created in the SQL query
+      schemaName: user.schemaName || 'public',
+    };
+
+    const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+
+    // ... your token hashing and saving logic ...
+
+    return {
+      access_token: accessToken,
+      refresh_token: refreshToken,
     };
   }
 }

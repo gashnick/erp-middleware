@@ -4,6 +4,7 @@ import { DatabaseService } from './database.service';
 import { ConfigModule } from '../config/config.module';
 import { TenantConnectionService } from './tenant-connection.service';
 import { TenantMigrationRunnerService } from './tenant-migration-runner.service';
+import { TenantQueryRunnerService } from './tenant-query-runner.service';
 
 const ormOptions = {
   type: 'postgres',
@@ -33,7 +34,18 @@ const ormOptions = {
 
 @Module({
   imports: [ConfigModule, TypeOrmModule.forRoot(ormOptions)],
-  providers: [DatabaseService, TenantConnectionService, TenantMigrationRunnerService],
-  exports: [DatabaseService, TenantConnectionService, TenantMigrationRunnerService, TypeOrmModule],
+  providers: [
+    DatabaseService,
+    TenantConnectionService,
+    TenantMigrationRunnerService,
+    TenantQueryRunnerService,
+  ],
+  exports: [
+    DatabaseService,
+    TenantConnectionService,
+    TenantMigrationRunnerService,
+    TenantQueryRunnerService,
+    TypeOrmModule,
+  ],
 })
 export class DatabaseModule {}

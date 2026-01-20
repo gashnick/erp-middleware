@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { ConfigService } from '../config/config.service';
-import { TenantsService } from '../tenants/tenants.service';
+import { TenantProvisioningService } from '@tenants/tenant-provisioning.service';
 import { createReadStream, createWriteStream, unlinkSync } from 'fs';
 import { createGzip, createGunzip } from 'zlib';
 import { pipeline } from 'stream';
@@ -29,7 +29,7 @@ export class BackupService {
 
   constructor(
     private readonly config: ConfigService,
-    private readonly tenantsService: TenantsService,
+    private readonly tenantsService: TenantProvisioningService,
   ) {}
 
   /**

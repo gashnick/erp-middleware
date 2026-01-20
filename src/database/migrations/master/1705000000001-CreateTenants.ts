@@ -1,43 +1,26 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateTenants1705000000001 implements MigrationInterface {
-  name = 'CreateTenants1705000000001';
-
+export class CreateTenantsTable1705000000001 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Create tenants table
-    await queryRunner.query(`
-      CREATE TABLE public.tenants (
-        id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        schema_name         VARCHAR(63) UNIQUE NOT NULL,
-        company_name        VARCHAR(255) NOT NULL,
-        data_source_type    VARCHAR(20) NOT NULL,
-        subscription_plan   VARCHAR(50) NOT NULL,
-        plan_limits         JSONB NOT NULL,
-        status              VARCHAR(20) NOT NULL DEFAULT 'active',
-        created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
-        updated_at          TIMESTAMP NOT NULL DEFAULT NOW(),
-        deleted_at          TIMESTAMP,
-        
-        CONSTRAINT valid_data_source CHECK (data_source_type IN ('internal', 'external')),
-        CONSTRAINT valid_plan CHECK (subscription_plan IN ('basic', 'standard', 'enterprise')),
-        CONSTRAINT valid_status CHECK (status IN ('active', 'suspended', 'cancelled'))
-      );
-    `);
-
-    // Create indexes for tenants
-    await queryRunner.query(`
-      CREATE INDEX idx_tenants_status ON public.tenants(status) WHERE deleted_at IS NULL;
-    `);
+    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`);
 
     await queryRunner.query(`
-      CREATE INDEX idx_tenants_schema ON public.tenants(schema_name);
-    `);
+            CREATE TABLE "public"."tenants" (
+                "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                "name" VARCHAR(255) NOT NULL,
+                "slug" VARCHAR(100) UNIQUE NOT NULL,
+                "schema_name" VARCHAR(100) UNIQUE NOT NULL,
+                "status" VARCHAR(50) NOT NULL DEFAULT 'active',
+                "owner_id" UUID,
+                "created_at" TIMESTAMP DEFAULT NOW(),
+                "updated_at" TIMESTAMP DEFAULT NOW()
+            );
+        `);
 
-    console.log('✅ Tenants table created');
+    await queryRunner.query(`CREATE INDEX "idx_tenants_slug" ON "public"."tenants"("slug");`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP TABLE IF EXISTS public.tenants CASCADE;`);
-    console.log('✅ Tenants table dropped');
+    await queryRunner.query(`DROP TABLE IF EXISTS "public"."tenants" CASCADE;`);
   }
 }

@@ -19,7 +19,7 @@ export class CreateUsers1705000000002 implements MigrationInterface {
         updated_at      TIMESTAMP NOT NULL DEFAULT NOW(),
         deleted_at      TIMESTAMP,
         
-        CONSTRAINT valid_role CHECK (role IN ('admin', 'manager', 'analyst', 'staff')),
+        CONSTRAINT valid_role CHECK (role IN ('ADMIN', 'MANAGER', 'ANALYST', 'STAFF')),
         CONSTRAINT valid_user_status CHECK (status IN ('active', 'inactive', 'invited')),
         CONSTRAINT unique_email_per_tenant UNIQUE (tenant_id, email)
       );
@@ -37,6 +37,18 @@ export class CreateUsers1705000000002 implements MigrationInterface {
     await queryRunner.query(`
       CREATE INDEX idx_users_status ON public.users(tenant_id, status);
     `);
+    // Inside CreateUsers migration or a new one
+    await queryRunner.query(`
+      ALTER TABLE "public"."tenants" 
+      ADD CONSTRAINT "fk_tenant_owner" 
+      FOREIGN KEY ("owner_id") REFERENCES "public"."users"("id") 
+      ON DELETE SET NULL;
+`);
+
+    // In your migration file
+    await queryRunner.query(`
+  ALTER TABLE public.users ALTER COLUMN tenant_id DROP NOT NULL;
+`);
 
     console.log('✅ Users table created');
   }

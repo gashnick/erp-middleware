@@ -10,19 +10,27 @@ import {
   Index,
 } from 'typeorm';
 import { Tenant } from '../../tenants/entities/tenant.entity';
+import { UserRole } from '../dto/create-user.dto'; // Import your Enum
 
 @Entity('users')
-@Index(['tenant', 'email'], { unique: true, where: 'deleted_at IS NULL' })
+// Adjusted index to handle nullable tenant_id for public users
+@Index(['tenantId', 'email'], {
+  unique: true,
+  where: 'deleted_at IS NULL AND tenant_id IS NOT NULL',
+})
+@Index(['email'], { unique: true, where: 'deleted_at IS NULL AND tenant_id IS NULL' })
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Tenant, { onDelete: 'CASCADE' })
+  // Make relation nullable for the initial signup phase
+  @ManyToOne(() => Tenant, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'tenant_id' })
   tenant: Tenant;
 
-  @Column({ name: 'tenant_id', type: 'uuid' })
-  tenantId: string;
+  // Explicitly allow null here
+  @Column({ name: 'tenant_id', type: 'uuid', nullable: true })
+  tenantId: string | null;
 
   @Column({ length: 255 })
   email: string;
@@ -33,8 +41,13 @@ export class User {
   @Column({ name: 'full_name', length: 255 })
   fullName: string;
 
-  @Column({ length: 50, default: 'staff' })
-  role: 'admin' | 'manager' | 'analyst' | 'staff';
+  // Change to use the UserRole Enum for consistency with DTO/Swagger
+  @Column({
+    type: 'varchar',
+    length: 50,
+    default: UserRole.STAFF,
+  })
+  role: UserRole;
 
   @Column({ length: 20, default: 'active' })
   status: 'active' | 'inactive' | 'invited';

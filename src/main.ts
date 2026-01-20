@@ -12,9 +12,10 @@ async function bootstrap() {
 
   // Enable CORS
   if (config.corsEnabled) {
-    app.enableCors();
-    origin: config.corsOrigin;
-    credentials: config.corsCredentials;
+    app.enableCors({
+      origin: config.corsOrigin,
+      credentials: config.corsCredentials,
+    });
   }
 
   // Global validation pipe

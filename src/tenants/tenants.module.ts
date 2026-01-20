@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TenantsController } from './tenants.controller';
-import { TenantsService } from './tenants.service';
 import { Tenant } from './entities/tenant.entity';
 import { DatabaseModule } from '@database/database.module';
+import { TenantProvisioningService } from './tenant-provisioning.service';
 
 /**
  * Tenants Module
@@ -23,7 +23,7 @@ import { DatabaseModule } from '@database/database.module';
     DatabaseModule,
   ],
   controllers: [TenantsController],
-  providers: [TenantsService],
-  exports: [TenantsService], // Export for use in other modules (like Auth)
+  providers: [TenantProvisioningService],
+  exports: [TenantProvisioningService], // Export for use in other modules (like Auth)
 })
 export class TenantsModule {}

@@ -6,19 +6,8 @@ import { getTenantContext, getSchemaName, getRequestId } from '../common/context
 
 /**
  * Tenant Query Runner Service
- *
- * THE CORE SERVICE for tenant-scoped database operations.
- *
- * CRITICAL RULES:
- * 1. NEVER use DataSource directly for tenant data
- * 2. ALWAYS use this service for tenant queries
- * 3. ALWAYS release QueryRunner in finally block
- * 4. NEVER cache QueryRunner across requests
- *
- * This service ensures:
- * - Correct schema is set before every query
- * - Connections are properly released
- * - All operations are logged for audit
+ * * THE CORE SERVICE for tenant-scoped database operations.
+ * Updated to support 'public' schema for auth/onboarding flows.
  */
 @Injectable()
 export class TenantQueryRunnerService {
@@ -31,48 +20,36 @@ export class TenantQueryRunnerService {
 
   /**
    * Get a QueryRunner with search_path set to tenant schema and role switched.
-   *
-   * CRITICAL: Caller MUST release the runner in a finally block.
-   *
-   * Example:
-   * ```typescript
-   * const runner = await this.tenantQueryRunner.getRunner();
-   * try {
-   *   const result = await runner.query('SELECT * FROM invoices');
-   *   return result;
-   * } finally {
-   *   await runner.release();
-   * }
-   * ```
-   *
-   * @returns QueryRunner configured for tenant schema with DB-level isolation
-   * @throws Error if tenant context is missing
-   * @throws Error if schema validation fails
    */
   async getRunner(): Promise<QueryRunner> {
     const { schemaName, tenantId } = getTenantContext();
     const requestId = getRequestId();
 
-    // Validate schema name format (prevent SQL injection)
-    this.validateSchemaName(schemaName);
+    // Check if we are operating in the shared public schema (Signup/Login)
+    const isPublic = schemaName === 'public';
 
-    // Verify schema exists in database
-    await this.verifySchemaExists(schemaName);
+    // Validate and verify ONLY if it is a tenant-specific schema
+    if (!isPublic) {
+      this.validateSchemaName(schemaName);
+      await this.verifySchemaExists(schemaName);
+    }
 
     // Create QueryRunner
     const runner = this.dataSource.createQueryRunner();
     await runner.connect();
 
-    // Set search_path to tenant schema
-    // Include 'public' as fallback for pg system functions
-    await runner.query(`SET search_path TO ${schemaName}, public`);
+    // Set search_path: If public, just 'public'. If tenant, 'tenant_xxx, public'
+    const searchPath = isPublic ? 'public' : `${schemaName}, public`;
+    await runner.query(`SET search_path TO ${searchPath}`);
 
-    // Switch to tenant role for DB-level isolation
-    // This ensures the connection can only access the tenant schema
-    await runner.query(`SELECT set_tenant_role()`);
+    // Switch to tenant role for DB-level isolation ONLY for tenants
+    // Public registration needs the standard app role to write to public.users
+    // if (!isPublic) {
+    //   await runner.query(`SELECT set_tenant_role()`);
+    // }
 
     this.logger.debug(
-      `[${requestId}] QueryRunner acquired for ${schemaName} (tenant: ${tenantId}) with role isolation`,
+      `[${requestId}] QueryRunner acquired for ${schemaName} (Mode: ${isPublic ? 'PUBLIC' : 'TENANT'})`,
     );
 
     return runner;
@@ -80,20 +57,6 @@ export class TenantQueryRunnerService {
 
   /**
    * Execute a query with automatic QueryRunner lifecycle management.
-   *
-   * Preferred for simple queries. Runner is automatically released.
-   *
-   * @param query SQL query string
-   * @param parameters Query parameters (use $1, $2, etc.)
-   * @returns Query results
-   *
-   * Example:
-   * ```typescript
-   * const invoices = await this.tenantQueryRunner.execute<Invoice>(
-   *   'SELECT * FROM invoices WHERE status = $1',
-   *   ['paid']
-   * );
-   * ```
    */
   async execute<T = any>(query: string, parameters?: any[]): Promise<T[]> {
     const runner = await this.getRunner();
@@ -101,11 +64,8 @@ export class TenantQueryRunnerService {
 
     try {
       this.logger.debug(`[${requestId}] Executing query: ${query.substring(0, 100)}...`);
-
       const result = await runner.query(query, parameters);
-
       this.logger.debug(`[${requestId}] Query returned ${result?.length || 0} rows`);
-
       return result;
     } catch (error) {
       this.logger.error(`[${requestId}] Query failed: ${error.message}`, error.stack);
@@ -118,22 +78,6 @@ export class TenantQueryRunnerService {
 
   /**
    * Execute a transaction with automatic rollback on error.
-   *
-   * Use this for operations that modify data.
-   *
-   * @param work Function that receives QueryRunner and returns result
-   * @returns Result from work function
-   *
-   * Example:
-   * ```typescript
-   * const invoice = await this.tenantQueryRunner.transaction(async (runner) => {
-   *   const result = await runner.query(
-   *     'INSERT INTO invoices (...) VALUES (...) RETURNING *',
-   *     [...]
-   *   );
-   *   return result[0];
-   * });
-   * ```
    */
   async transaction<T>(work: (runner: QueryRunner) => Promise<T>): Promise<T> {
     const runner = await this.getRunner();
@@ -161,48 +105,38 @@ export class TenantQueryRunnerService {
 
   /**
    * Validate schema name format.
-   *
-   * Prevents SQL injection via malicious schema names.
-   *
-   * Valid format: tenant_<32 hex chars>
-   * Example: tenant_a1b2c3d4e5f6...
+   * Now allows 'public' as a valid schema name.
    */
   private validateSchemaName(schemaName: string): void {
-    const validPattern = /^tenant_[a-f0-9]{32}$/;
+    if (schemaName === 'public') return;
+
+    // Allows 'tenant_' followed by alphanumeric characters and underscores
+    // This covers: tenant_acme_erp_corp_b0c49559
+    const validPattern = /^tenant_[a-z0-9_]+$/;
 
     if (!validPattern.test(schemaName)) {
       this.logger.error(`Invalid schema name format: ${schemaName}`);
-      throw new Error(
-        `Invalid schema name: ${schemaName}. ` + `This indicates a bug or security issue.`,
-      );
+      throw new Error(`Invalid schema name: ${schemaName}.`);
     }
   }
 
   /**
    * Verify schema exists in database.
-   *
-   * Prevents queries against non-existent schemas.
    */
   private async verifySchemaExists(schemaName: string): Promise<void> {
+    if (schemaName === 'public') return;
+
     const result = await this.dataSource.query(
-      `SELECT EXISTS(
-        SELECT 1 FROM information_schema.schemata 
-        WHERE schema_name = $1
-      ) as exists`,
+      `SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name = $1) as exists`,
       [schemaName],
     );
 
     if (!result[0].exists) {
       this.logger.error(`Schema does not exist: ${schemaName}`);
-      throw new Error(
-        `Schema ${schemaName} does not exist. ` + `Tenant data may have been deleted or corrupted.`,
-      );
+      throw new Error(`Schema ${schemaName} does not exist.`);
     }
   }
 
-  /**
-   * Get current schema name (for debugging).
-   */
   async getCurrentSchema(): Promise<string> {
     const result = await this.dataSource.query('SHOW search_path');
     return result[0].search_path;

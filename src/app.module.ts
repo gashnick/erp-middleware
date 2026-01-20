@@ -1,4 +1,5 @@
 import { MiddlewareConsumer, Module, OnModuleInit } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from './config/config.module';
@@ -9,9 +10,23 @@ import { TenantMigrationRunnerService } from '@database/tenant-migration-runner.
 import { ConfigService } from '@config/config.service';
 import { AuthModule } from '@auth/auth.module';
 import { UsersModule } from '@users/users.module';
+import { FinanceModule } from '@finance/finance.module';
+import { InvoicesModule } from '@finance/invoices/invoices.module';
 
 @Module({
-  imports: [ConfigModule, DatabaseModule, TenantsModule, AuthModule, UsersModule],
+  imports: [
+    ConfigModule,
+    DatabaseModule,
+    TenantsModule,
+    AuthModule,
+    InvoicesModule,
+    UsersModule,
+    FinanceModule,
+    JwtModule.register({
+      secret: process.env.JWT_SECRET || 'change-me-in-production',
+      signOptions: { expiresIn: '1h' },
+    }),
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
@@ -23,7 +38,7 @@ export class AppModule implements OnModuleInit {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(TenantContextMiddleware)
-      .exclude('/auth/login', '/auth/register', '/health', '/health/database', '*path/swagger') // Exclude auth and health routes
+      .exclude('/health', '/health/database', '*path/swagger', '/api') // Exclude auth and health routes
       .forRoutes('*'); // Apply to all other routes
   }
 

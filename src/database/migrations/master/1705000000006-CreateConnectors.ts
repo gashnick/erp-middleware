@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateConnectors1705000000004 implements MigrationInterface {
-  name = 'CreateConnectors1705000000004';
+export class CreateConnectors1705000000006 implements MigrationInterface {
+  name = 'CreateConnectors1705000000006';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Create connectors table
