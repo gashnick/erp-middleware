@@ -9,6 +9,7 @@ import { TenantMigrationRunnerService } from '@database/tenant-migration-runner.
 import { v4 as uuidv4 } from 'uuid';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { randomBytes } from 'crypto';
+import { EncryptionService } from '@common/security/encryption.service';
 
 @Injectable()
 export class TenantProvisioningService {
@@ -17,14 +18,22 @@ export class TenantProvisioningService {
   constructor(
     private readonly tenantDb: TenantQueryRunnerService,
     private readonly migrationRunner: TenantMigrationRunnerService,
+    private readonly encryptionService: EncryptionService,
   ) {}
 
   async createOrganization(userId: string, dto: CreateTenantDto) {
     const { companyName, subscriptionPlan } = dto;
     const tenantId = uuidv4();
 
-    // STEP 4: Generate a unique secret for this tenant
-    const tenantSecret = randomBytes(32).toString('hex');
+    // 2. Generate the "Data Encryption Key" (DEK) for this tenant
+    const rawSecret = this.encryptionService.generateTenantSecret();
+
+    // 3. Envelope Encryption: Encrypt the secret using our Master Key
+    // This assumes your EncryptionService has a method to use the GLOBAL_MASTER_KEY
+    const encryptedSecret = this.encryptionService.encrypt(
+      rawSecret,
+      process.env.GLOBAL_MASTER_KEY || 'default_master_key',
+    );
 
     const slug = companyName
       .toLowerCase()
@@ -45,7 +54,7 @@ export class TenantProvisioningService {
       await runner.query(
         `INSERT INTO public.tenants (id, name, slug, schema_name, status, tenant_secret, owner_id) 
          VALUES ($1, $2, $3, $4, 'active', $5, $6)`,
-        [tenantId, companyName, slug, schemaName, tenantSecret, userId],
+        [tenantId, companyName, slug, schemaName, encryptedSecret, userId],
       );
 
       // 3. Create Physical Schema
@@ -78,12 +87,13 @@ export class TenantProvisioningService {
     const runner = await this.tenantDb.getRunner();
     try {
       const result = await runner.query(
-        `SELECT id, name, schema_name, status 
+        `SELECT id, name, schema_name, status, tenant_secret
          FROM public.tenants 
          WHERE id = $1`,
         [tenantId],
       );
-      return result[0]; // TypeORM query results are usually arrays
+      // Return the first tenant found or null
+      return result && result.length > 0 ? result[0] : null;
     } finally {
       await runner.release();
     }

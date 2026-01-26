@@ -81,6 +81,7 @@ export default () => ({
   security: {
     bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '10', 10),
     sessionSecret: process.env.SESSION_SECRET || 'change-me-in-production',
+    globalMasterKey: process.env.GLOBAL_MASTER_KEY || '12345678901234567890123456789012',
   },
 
   // Logging

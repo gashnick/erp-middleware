@@ -7,9 +7,9 @@ export class CreateAuditLogs1705000000007 implements MigrationInterface {
     // Create audit_logs table
     await queryRunner.query(`
       CREATE TABLE public.audit_logs (
-        id              BIGSERIAL PRIMARY KEY,
-        tenant_id       UUID NOT NULL,
-        user_id         UUID,
+        id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        tenant_id       UUID REFERENCES public.tenants(id) ON DELETE CASCADE,
+        user_id         UUID REFERENCES public.users(id) ON DELETE SET NULL,
         action          VARCHAR(100) NOT NULL,
         resource_type   VARCHAR(50),
         resource_id     UUID,

@@ -13,6 +13,11 @@ import { UsersModule } from '@users/users.module';
 import { FinanceModule } from '@finance/finance.module';
 import { InvoicesModule } from '@finance/invoices/invoices.module';
 import { ConnectorsModule } from '@connectors/connectors.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { AuditModule } from '@common/audit/audit.module';
+import { EncryptionModule } from '@common/security/encryption.module';
+import { APP_FILTER } from '@nestjs/core';
+import { AllExceptionsFilter } from '@common/filters/all-exceptions.filter';
 
 @Module({
   imports: [
@@ -28,9 +33,18 @@ import { ConnectorsModule } from '@connectors/connectors.module';
       secret: process.env.JWT_SECRET || 'change-me-in-production',
       signOptions: { expiresIn: '1h' },
     }),
+    EventEmitterModule.forRoot(),
+    AuditModule,
+    EncryptionModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
+    },
+  ],
 })
 export class AppModule implements OnModuleInit {
   constructor(

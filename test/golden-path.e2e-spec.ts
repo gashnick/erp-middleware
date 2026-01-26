@@ -131,6 +131,24 @@ describe('Golden Path: Full Lifecycle (Month 1)', () => {
     expect(res.body.some((i: InvoiceResult) => i.customer_name === 'Was Missing Corp')).toBe(true);
   });
 
+  it('7. Verify Audit Trail (Observability)', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/audit')
+      .set('Authorization', `Bearer ${tenantToken}`)
+      .expect(200);
+
+    // We expect at least the 'QUARANTINE RETRY' action to be here
+    expect(res.body.length).toBeGreaterThanOrEqual(1);
+
+    const repairLog = res.body.find((log: any) => log.action === 'QUARANTINE_RETRY');
+
+    expect(repairLog).toBeDefined();
+    expect(repairLog.metadata.recordId).toBe(quarantinedRecordId);
+    // Verify the user ID in the log matches the user in our token
+    const payload = JSON.parse(Buffer.from(tenantToken.split('.')[1], 'base64').toString());
+    expect(repairLog.user_id).toBe(payload.sub);
+  });
+
   afterAll(async () => {
     await app.close();
   });

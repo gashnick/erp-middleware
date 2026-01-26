@@ -23,16 +23,13 @@ export class InvoicesController {
 
   @Post()
   async create(@Body() dto: CreateInvoiceDto) {
-    // Pull from AsyncLocalStorage via your helper
     const { schemaName } = getTenantContext();
-
     return this.invoicesService.create(dto, schemaName);
   }
 
   @Get()
   async findAll(@Req() req: AuthenticatedRequest) {
-    // Because of our middleware/guard, the search_path is already set
-    // to the tenant's private schema. This query is safe and isolated.
-    return this.tenantDb.execute('SELECT * FROM invoices ORDER BY created_at DESC');
+    // Pass the tenantId from the JWT token to the service for decryption
+    return this.invoicesService.findAll(req.user.tenantId);
   }
 }

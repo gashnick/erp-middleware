@@ -7,7 +7,7 @@ import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 // Define the shape of your Request with the User payload
 interface AuthenticatedRequest extends Request {
   user: {
-    userId: string;
+    id: string;
     tenantId: string;
     role: string;
   };
@@ -29,6 +29,6 @@ export class QuarantineController {
     @Body() fixedData: any,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.etlService.retryQuarantineRecord(req.user.tenantId, id, fixedData);
+    return this.etlService.retryQuarantineRecord(req.user.tenantId, id, fixedData, req.user.id);
   }
 }

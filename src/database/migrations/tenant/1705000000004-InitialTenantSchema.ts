@@ -8,27 +8,48 @@ export default class InitialTenantSchema1705000000004 implements MigrationInterf
         name: 'contacts',
         columns: [
           { name: 'id', type: 'uuid', isPrimary: true, default: 'gen_random_uuid()' },
-          { name: 'name', type: 'varchar' },
+          { name: 'name', type: 'text' }, // Changed to text for encryption padding
+          { name: 'external_id', type: 'varchar', isNullable: true }, // For QB/Odoo sync
           { name: 'contact_info', type: 'jsonb', isNullable: true },
-          { name: 'tags', type: 'text', isArray: true, isNullable: true },
-          { name: 'type', type: 'varchar', comment: 'customer or vendor' },
+          { name: 'is_encrypted', type: 'boolean', default: false }, // Security tracking
+          { name: 'type', type: 'varchar' },
         ],
       }),
       true,
     );
 
-    // 2. Invoices
+    // 2. Invoices (Updated for Dashboard & AI)
     await queryRunner.createTable(
       new Table({
         name: 'invoices',
         columns: [
           { name: 'id', type: 'uuid', isPrimary: true, default: 'gen_random_uuid()' },
-          { name: 'invoice_number', type: 'varchar', isNullable: true },
-          { name: 'customer_name', type: 'varchar', isNullable: true },
+          { name: 'invoice_number', type: 'text', isNullable: true }, // Encrypted
+          { name: 'customer_name', type: 'text', isNullable: true }, // Encrypted
           { name: 'amount', type: 'decimal', precision: 15, scale: 2 },
+          { name: 'is_encrypted', type: 'boolean', default: 'false' },
+          { name: 'external_id', type: 'varchar', isNullable: true }, // Mapping to ERP
           { name: 'currency', type: 'varchar', length: '10', default: "'USD'" },
           { name: 'due_date', type: 'timestamp', isNullable: true },
           { name: 'status', type: 'varchar', default: "'draft'" },
+          { name: 'metadata', type: 'jsonb', isNullable: true }, // Store AI confidence scores here
+          { name: 'created_at', type: 'timestamp', default: 'now()' },
+        ],
+      }),
+      true,
+    );
+
+    // 6. AI Insights (NEW: Satisfies "Anomalies Preview Panel")
+    await queryRunner.createTable(
+      new Table({
+        name: 'ai_insights',
+        columns: [
+          { name: 'id', type: 'uuid', isPrimary: true, default: 'gen_random_uuid()' },
+          { name: 'target_entity', type: 'varchar' }, // 'invoices' or 'orders'
+          { name: 'target_id', type: 'uuid' }, // The specific record ID
+          { name: 'insight_type', type: 'varchar' }, // 'anomaly', 'prediction', 'risk'
+          { name: 'message', type: 'text' }, // "Potential duplicate detected"
+          { name: 'confidence', type: 'decimal', precision: 3, scale: 2 }, // 0.0 to 1.0
           { name: 'created_at', type: 'timestamp', default: 'now()' },
         ],
       }),

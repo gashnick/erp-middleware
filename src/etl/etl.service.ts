@@ -1,12 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { TenantQueryRunnerService } from '@database/tenant-query-runner.service';
-
-interface ValidInvoice {
-  customer_name: string;
-  amount: number;
-  invoice_number: string;
-  status: string;
-}
+import { AuditService } from '@common/audit/audit.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EncryptionService } from '@common/security/encryption.service';
+import { TenantProvisioningService } from '@tenants/tenant-provisioning.service';
+import { ValidInvoice } from './interfaces/invoice-data.interface';
+import { ConfigService } from '@nestjs/config';
 
 interface QuarantineRecord {
   source_type: string;
@@ -16,12 +15,26 @@ interface QuarantineRecord {
 
 @Injectable()
 export class EtlService {
-  constructor(private readonly tenantDb: TenantQueryRunnerService) {}
+  constructor(
+    private readonly tenantDb: TenantQueryRunnerService,
+    private readonly auditService: AuditService,
+    private readonly eventEmitter: EventEmitter2,
+    private readonly encryptionService: EncryptionService,
+    private readonly tenantProvisioning: TenantProvisioningService,
+    private readonly configService: ConfigService,
+  ) {}
 
+  /**
+   * Main ETL Entry point for bulk uploads
+   */
   async runInvoiceEtl(tenantId: string, rawData: any[]) {
+    // 1. Fetch & Decrypt Tenant Secret (Envelope Encryption)
+    const rawSecret = await this.getTenantSecret(tenantId);
+
     const validInvoices: ValidInvoice[] = [];
     const quarantine: QuarantineRecord[] = [];
 
+    // 2. Transform & Validate
     for (const row of rawData) {
       const errors: string[] = [];
       if (!row.amount || isNaN(parseFloat(row.amount))) errors.push('Invalid amount');
@@ -29,10 +42,16 @@ export class EtlService {
 
       if (errors.length === 0) {
         validInvoices.push({
-          customer_name: row.customer_name,
+          // AES-256-GCM Encryption for PII
+          customer_name: this.encryptionService.encrypt(row.customer_name, rawSecret),
+          invoice_number: this.encryptionService.encrypt(
+            row.invoice_number || `INV-${Date.now()}`,
+            rawSecret,
+          ),
           amount: parseFloat(row.amount),
-          invoice_number: row.invoice_number || `INV-${Date.now()}`,
           status: row.status || 'draft',
+          is_encrypted: true,
+          metadata: JSON.stringify({ source: 'csv_upload' }), // For AI Layer
         });
       } else {
         quarantine.push({
@@ -43,9 +62,8 @@ export class EtlService {
       }
     }
 
-    // FIX: tenantDb.transaction accepts (work, tenantId?)
-    // We pass it to ensure background tasks have the right context
-    return await this.tenantDb.transaction(async (runner) => {
+    // 3. Persistent Load via Transaction
+    const result = await this.tenantDb.transaction(async (runner) => {
       if (validInvoices.length > 0) {
         await runner.manager.insert('invoices', validInvoices);
       }
@@ -58,33 +76,81 @@ export class EtlService {
         quarantined: quarantine.length,
       };
     }, tenantId);
+
+    // 4. Observability: Structured Logging
+    this.eventEmitter.emit('audit.log', {
+      tenantId,
+      action: 'DATA_SYNC_CSV',
+      metadata: {
+        total_records: result.total,
+        success: result.synced,
+        failed: result.quarantined,
+      },
+    });
+
+    return result;
   }
 
-  async getQuarantineRecords(tenantId: string) {
-    // FIX: Remove the 3rd argument (tenantId).
-    // The TenantQueryRunnerService gets this from the Request Context automatically.
-    return this.tenantDb.execute(
-      `SELECT * FROM quarantine_records WHERE status = 'pending' ORDER BY created_at DESC`,
-      [],
-    );
-  }
+  /**
+   * Handle the "Fix UI" flow for quarantined records
+   */
+  async retryQuarantineRecord(tenantId: string, recordId: string, fixedData: any, userId: string) {
+    const rawSecret = await this.getTenantSecret(tenantId);
 
-  async retryQuarantineRecord(tenantId: string, recordId: string, fixedData: any) {
-    return this.tenantDb.transaction(async (runner) => {
+    const result = await this.tenantDb.transaction(async (runner) => {
       if (!fixedData.customer_name || !fixedData.amount) {
         throw new Error('Data still invalid. Please provide name and amount.');
       }
 
+      // 1. Insert fixed record with encryption
       await runner.manager.insert('invoices', {
-        customer_name: fixedData.customer_name,
+        customer_name: this.encryptionService.encrypt(fixedData.customer_name, rawSecret),
+        invoice_number: this.encryptionService.encrypt(fixedData.invoice_number, rawSecret),
         amount: parseFloat(fixedData.amount),
-        invoice_number: fixedData.invoice_number,
         status: 'draft',
+        is_encrypted: true,
       });
 
+      // 2. Mark quarantine as resolved
       await runner.manager.update('quarantine_records', { id: recordId }, { status: 'resolved' });
 
-      return { success: true, message: 'Record synced successfully' };
+      return { success: true };
     }, tenantId);
+
+    // 3. Log the human intervention (Audit Trail)
+    this.eventEmitter.emit('audit.log', {
+      tenantId,
+      userId,
+      action: 'QUARANTINE_RETRY',
+      metadata: { recordId, fixed_fields: Object.keys(fixedData) },
+    });
+
+    return result;
+  }
+
+  /**
+   * Internal Helper for Envelope Decryption
+   */
+  async getTenantSecret(tenantId: string): Promise<string> {
+    const tenant = await this.tenantProvisioning.findById(tenantId);
+
+    if (!tenant || !tenant.tenant_secret) {
+      throw new InternalServerErrorException('Tenant security context not found');
+    }
+
+    const masterKey = this.configService.get<string>('security.globalMasterKey');
+
+    if (!masterKey || masterKey.length !== 32) {
+      throw new InternalServerErrorException('System Configuration Error: Invalid Master Key');
+    }
+
+    return this.encryptionService.decrypt(tenant.tenant_secret, masterKey);
+  }
+
+  async getQuarantineRecords(tenantId: string) {
+    return this.tenantDb.execute(
+      `SELECT * FROM quarantine_records WHERE status = 'pending' ORDER BY created_at DESC`,
+      [],
+    );
   }
 }

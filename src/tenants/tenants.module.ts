@@ -4,6 +4,7 @@ import { TenantsController } from './tenants.controller';
 import { Tenant } from './entities/tenant.entity';
 import { DatabaseModule } from '@database/database.module';
 import { TenantProvisioningService } from './tenant-provisioning.service';
+import { EncryptionModule } from '@common/security/encryption.module';
 
 /**
  * Tenants Module
@@ -21,6 +22,7 @@ import { TenantProvisioningService } from './tenant-provisioning.service';
     // Register Tenant entity with TypeORM
     TypeOrmModule.forFeature([Tenant]),
     DatabaseModule,
+    EncryptionModule,
   ],
   controllers: [TenantsController],
   providers: [TenantProvisioningService],
