@@ -8,6 +8,7 @@ import { TenantQueryRunnerService } from '@database/tenant-query-runner.service'
 import { TenantMigrationRunnerService } from '@database/tenant-migration-runner.service';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateTenantDto } from './dto/create-tenant.dto';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class TenantProvisioningService {
@@ -21,6 +22,10 @@ export class TenantProvisioningService {
   async createOrganization(userId: string, dto: CreateTenantDto) {
     const { companyName, subscriptionPlan } = dto;
     const tenantId = uuidv4();
+
+    // STEP 4: Generate a unique secret for this tenant
+    const tenantSecret = randomBytes(32).toString('hex');
+
     const slug = companyName
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '_')
@@ -36,10 +41,11 @@ export class TenantProvisioningService {
       );
       if (!plans?.length) throw new NotFoundException(`Plan ${subscriptionPlan} not found`);
 
-      // 2. Create Tenant & Subscription
+      // 2. Create Tenant & Subscription (Added tenant_secret here)
       await runner.query(
-        `INSERT INTO public.tenants (id, name, slug, schema_name, status, owner_id) VALUES ($1, $2, $3, $4, 'active', $5)`,
-        [tenantId, companyName, slug, schemaName, userId],
+        `INSERT INTO public.tenants (id, name, slug, schema_name, status, tenant_secret, owner_id) 
+         VALUES ($1, $2, $3, $4, 'active', $5, $6)`,
+        [tenantId, companyName, slug, schemaName, tenantSecret, userId],
       );
 
       // 3. Create Physical Schema
@@ -52,7 +58,7 @@ export class TenantProvisioningService {
       ]);
     });
 
-    // STEP 2: Run Migrations (Outside the first transaction so it can see the schema)
+    // STEP 2: Run Migrations
     try {
       this.logger.log(`Starting migrations for new schema: ${schemaName}`);
       const migrationResult = await this.migrationRunner.runMigrations(schemaName);
@@ -62,7 +68,6 @@ export class TenantProvisioningService {
       }
     } catch (error) {
       this.logger.error(`Migration phase failed: ${error.message}`);
-      // Optional: Add logic to delete the schema if migrations fail
       throw new InternalServerErrorException('Environment provisioned but table setup failed');
     }
 

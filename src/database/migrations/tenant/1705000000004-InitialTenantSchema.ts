@@ -1,11 +1,11 @@
-import { MigrationInterface, QueryRunner, Table, TableForeignKey } from 'typeorm';
+import { MigrationInterface, QueryRunner, Table } from 'typeorm';
 
 export default class InitialTenantSchema1705000000004 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 1. Customers/Vendors
     await queryRunner.createTable(
       new Table({
-        name: 'contacts', // Combined Customer/Vendor
+        name: 'contacts',
         columns: [
           { name: 'id', type: 'uuid', isPrimary: true, default: 'gen_random_uuid()' },
           { name: 'name', type: 'varchar' },
@@ -17,14 +17,14 @@ export default class InitialTenantSchema1705000000004 implements MigrationInterf
       true,
     );
 
-    // 2. Invoices (The one needed for your E2E test!)
+    // 2. Invoices
     await queryRunner.createTable(
       new Table({
         name: 'invoices',
         columns: [
           { name: 'id', type: 'uuid', isPrimary: true, default: 'gen_random_uuid()' },
           { name: 'invoice_number', type: 'varchar', isNullable: true },
-          { name: 'customer_name', type: 'varchar', isNullable: true }, // For your specific test case
+          { name: 'customer_name', type: 'varchar', isNullable: true },
           { name: 'amount', type: 'decimal', precision: 15, scale: 2 },
           { name: 'currency', type: 'varchar', length: '10', default: "'USD'" },
           { name: 'due_date', type: 'timestamp', isNullable: true },
@@ -65,10 +65,25 @@ export default class InitialTenantSchema1705000000004 implements MigrationInterf
       true,
     );
 
-    // ... You can add Payments, Assets, and Alerts following the same pattern
+    // 5. Quarantine (Added for Reliability)
+    await queryRunner.createTable(
+      new Table({
+        name: 'quarantine_records',
+        columns: [
+          { name: 'id', type: 'uuid', isPrimary: true, default: 'gen_random_uuid()' },
+          { name: 'source_type', type: 'varchar' }, // e.g., 'csv', 'quickbooks'
+          { name: 'raw_data', type: 'jsonb' }, // Store the messy original data
+          { name: 'errors', type: 'jsonb' }, // Store the reasons why it failed
+          { name: 'status', type: 'varchar', default: "'pending'" }, // For the "Fix UI"
+          { name: 'created_at', type: 'timestamp', default: 'now()' },
+        ],
+      }),
+      true,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.dropTable('quarantine_records');
     await queryRunner.dropTable('orders');
     await queryRunner.dropTable('products');
     await queryRunner.dropTable('invoices');

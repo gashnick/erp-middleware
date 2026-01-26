@@ -11,6 +11,7 @@ export class CreateTenantsTable1705000000001 implements MigrationInterface {
                 "slug" VARCHAR(100) UNIQUE NOT NULL,
                 "schema_name" VARCHAR(100) UNIQUE NOT NULL,
                 "status" VARCHAR(50) NOT NULL DEFAULT 'active',
+                "tenant_secret" VARCHAR(255), -- Step 4: For per-tenant AES-256 encryption
                 "owner_id" UUID,
                 "created_at" TIMESTAMP DEFAULT NOW(),
                 "updated_at" TIMESTAMP DEFAULT NOW()

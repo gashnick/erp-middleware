@@ -75,11 +75,33 @@ export class TenantQueryRunnerService {
       this.logger.debug(`[${requestId}] QueryRunner released`);
     }
   }
+  /**
+   * Helper to get tenant metadata from public schema
+   */
+  private async getTenantMetadata(tenantId: string) {
+    const [tenant] = await this.dataSource.query(
+      `SELECT schema_name FROM public.tenants WHERE id = $1`,
+      [tenantId],
+    );
+    if (!tenant) throw new Error(`Tenant ${tenantId} not found`);
+    return tenant;
+  }
 
   /**
    * Execute a transaction with automatic rollback on error.
    */
-  async transaction<T>(work: (runner: QueryRunner) => Promise<T>): Promise<T> {
+  /**
+   * Execute a transaction with automatic rollback on error.
+   * Updated to optionally accept tenantId for background tasks/ETL.
+   */
+  async transaction<T>(
+    work: (runner: QueryRunner) => Promise<T>,
+    tenantId?: string, // <--- Add this optional parameter
+  ): Promise<T> {
+    // If a tenantId is passed explicitly (like from EtlService),
+    // we could potentially fetch the schema name here if it's not in context.
+    // But for now, we'll keep using getRunner() which pulls from Context.
+
     const runner = await this.getRunner();
     const requestId = getRequestId();
 

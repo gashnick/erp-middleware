@@ -12,6 +12,7 @@ import { AuthModule } from '@auth/auth.module';
 import { UsersModule } from '@users/users.module';
 import { FinanceModule } from '@finance/finance.module';
 import { InvoicesModule } from '@finance/invoices/invoices.module';
+import { ConnectorsModule } from '@connectors/connectors.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { InvoicesModule } from '@finance/invoices/invoices.module';
     InvoicesModule,
     UsersModule,
     FinanceModule,
+    ConnectorsModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'change-me-in-production',
       signOptions: { expiresIn: '1h' },

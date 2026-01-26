@@ -21,6 +21,7 @@
     "^@ai/(.*)$": "<rootDir>/src/ai/$1",
     "^@chat/(.*)$": "<rootDir>/src/chat/$1",
     "^@audit/(.*)$": "<rootDir>/src/audit/$1",
-    "^@common/(.*)$": "<rootDir>/src/common/$1"
+    "^@common/(.*)$": "<rootDir>/src/common/$1",
+    "^@etl/(.*)$": "<rootDir>/src/etl/$1"
   }
 }
