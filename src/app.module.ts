@@ -18,6 +18,7 @@ import { AuditModule } from '@common/audit/audit.module';
 import { EncryptionModule } from '@common/security/encryption.module';
 import { APP_FILTER } from '@nestjs/core';
 import { AllExceptionsFilter } from '@common/filters/all-exceptions.filter';
+import { MetricsModule } from '@common/metrics/metrics.module';
 
 @Module({
   imports: [
@@ -36,6 +37,8 @@ import { AllExceptionsFilter } from '@common/filters/all-exceptions.filter';
     EventEmitterModule.forRoot(),
     AuditModule,
     EncryptionModule,
+    ConnectorsModule,
+    MetricsModule,
   ],
   controllers: [AppController],
   providers: [

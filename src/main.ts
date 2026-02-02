@@ -3,6 +3,8 @@ import { AppModule } from './app.module';
 import { ConfigService } from './config/config.service';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { AuditLoggingInterceptor } from '@common/interceptors/audit-logging.interceptor';
+import { AllExceptionsFilter } from '@common/filters/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -17,7 +19,10 @@ async function bootstrap() {
       credentials: config.corsCredentials,
     });
   }
+  // Logging Intreceptor can be added here if needed
+  app.useGlobalInterceptors(new AuditLoggingInterceptor());
 
+  app.useGlobalFilters(new AllExceptionsFilter());
   // Global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({

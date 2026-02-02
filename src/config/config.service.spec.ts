@@ -68,6 +68,11 @@ describe('ConfigService', () => {
   });
 
   describe('JWT', () => {
+    beforeEach(() => {
+      // Mock development environment to avoid JWT_SECRET validation in production
+      jest.spyOn(service, 'isProduction', 'get').mockReturnValue(false);
+    });
+
     it('should return JWT secret', () => {
       expect(service.jwtSecret).toBeDefined();
       expect(typeof service.jwtSecret).toBe('string');

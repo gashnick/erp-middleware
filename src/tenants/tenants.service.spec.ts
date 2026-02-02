@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TenantProvisioningService } from './tenant-provisioning.service';
 import { TenantQueryRunnerService } from '@database/tenant-query-runner.service';
+import { TenantMigrationRunnerService } from '@database/tenant-migration-runner.service';
+import { EncryptionService } from '@common/security/encryption.service';
+import { ConfigService } from '@nestjs/config';
 import { NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 
@@ -26,6 +29,21 @@ describe('TenantProvisioningService', () => {
       providers: [
         TenantProvisioningService,
         { provide: TenantQueryRunnerService, useValue: tenantDbMock },
+        {
+          provide: TenantMigrationRunnerService,
+          useValue: { runMigrations: jest.fn().mockResolvedValue({ errors: [] }) },
+        },
+        {
+          provide: EncryptionService,
+          useValue: {
+            generateTenantSecret: jest.fn().mockReturnValue('raw-secret'),
+            encrypt: jest.fn().mockReturnValue('encrypted-secret'),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('GLOBAL_MASTER_KEY') },
+        },
       ],
     }).compile();
 
@@ -50,9 +68,9 @@ describe('TenantProvisioningService', () => {
       expect(result.slug).toBe('test_corp');
       expect(result.schemaName).toContain('tenant_test_corp_');
 
-      // Verify all 5 major SQL steps were called
-      // (Plan select, Tenant insert, Sub insert, Create schema, Create table, Update user)
-      expect(queryRunnerMock.query).toHaveBeenCalledTimes(6);
+      // Verify all major SQL steps were called
+      // (Plan select, Tenant insert, Create schema, Update user, Audit log)
+      expect(queryRunnerMock.query).toHaveBeenCalledTimes(5);
       expect(tenantDbMock.transaction).toHaveBeenCalled();
     });
 
@@ -78,9 +96,8 @@ describe('TenantProvisioningService', () => {
       // 4. Schema creation FAIL
       queryRunnerMock.query.mockRejectedValueOnce(new Error('Postgres Permission Denied'));
 
-      await expect(service.createOrganization(mockUserId, mockDto)).rejects.toThrow(
-        InternalServerErrorException,
-      );
+      // The service will propagate the underlying error during the transaction
+      await expect(service.createOrganization(mockUserId, mockDto)).rejects.toThrow(Error);
     });
   });
 

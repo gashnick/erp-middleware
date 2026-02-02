@@ -56,14 +56,11 @@ export class AuditLoggingInterceptor implements NestInterceptor {
         },
         error: (error) => {
           const duration = Date.now() - startTime;
-          this.logger.error(
-            JSON.stringify({
-              ...auditData,
-              status: 'error',
-              error: error.message,
-              duration,
-            }),
-          );
+          // 1. The "Easy Reading" log for you
+          console.log(`🚀 [API] ${request.method} ${request.path} - ${duration}ms`);
+
+          // 2. The "Structured Log" for the Month 1 Requirements
+          this.logger.log(JSON.stringify({ ...auditData, status: 'success', duration }));
         },
       }),
     );

@@ -16,6 +16,8 @@ export class CreateConnectors1705000000006 implements MigrationInterface {
         last_sync_at    TIMESTAMP,
         next_sync_at    TIMESTAMP,
         sync_frequency  VARCHAR(50) DEFAULT 'manual',
+        retry_count INTEGER DEFAULT 0,
+        metadata JSONB DEFAULT '{}',
         error_message   TEXT,
         created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
         updated_at      TIMESTAMP NOT NULL DEFAULT NOW(),

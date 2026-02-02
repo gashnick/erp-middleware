@@ -14,4 +14,10 @@ export class AuditController {
     // TypeScript now knows req.user exists and has a tenantId!
     return this.auditService.getTenantLogs(req.user.tenantId);
   }
+
+  @Get()
+  async getMyLogs(@Req() req: any) {
+    // req.user.tenantId comes from the JwtAuthGuard/Strategy
+    return this.auditService.getTenantLogs(req.user.tenantId);
+  }
 }

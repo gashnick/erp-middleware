@@ -1,3 +1,4 @@
+import { getTenantContext, hasTenantContext } from '@common/context/tenant-context';
 import {
   ExceptionFilter,
   Catch,
@@ -16,6 +17,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
+    const tenantCtx = hasTenantContext() ? getTenantContext() : null;
 
     // Determine status: Use the status if it's an HttpException, otherwise 500
     const status =
@@ -37,7 +39,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
-      // Hide stack trace from client in production, show it in development/test
+      correlationId: tenantCtx?.requestId || 'N/A', // <--- Added this for Month 1
       message: process.env.NODE_ENV === 'production' ? 'Internal server error' : message,
     });
   }

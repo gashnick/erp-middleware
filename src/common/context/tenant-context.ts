@@ -2,6 +2,26 @@
 import { AsyncLocalStorage } from 'async_hooks';
 
 /**
+ * User roles in the system
+ *
+ * 🛡️ CRITICAL: Use specific system roles for privilege minimization.
+ * Never use generic 'SYSTEM' - always specify which system component is acting.
+ */
+export enum UserRole {
+  // Regular user roles
+  ADMIN = 'ADMIN',
+  STAFF = 'STAFF',
+  ANALYST = 'ANALYST',
+  VIEWER = 'VIEWER',
+
+  // System roles (use for background jobs, migrations, etc.)
+  SYSTEM_MIGRATION = 'SYSTEM_MIGRATION', // Can only run migrations
+  SYSTEM_JOB = 'SYSTEM_JOB', // Can execute scheduled jobs
+  SYSTEM_READONLY = 'SYSTEM_READONLY', // Can only read data (backups, analytics)
+  SYSTEM_MAINTENANCE = 'SYSTEM_MAINTENANCE', // Can perform maintenance tasks
+}
+
+/**
  * Tenant Context Interface
  *
  * Contains all information needed to identify and operate on a tenant.
@@ -13,101 +33,72 @@ export interface TenantContext {
   requestId: string;
   schemaName: string;
   userEmail: string;
-  userRole: string;
+  userRole: UserRole | string;
+  ipAddress?: string;
+  userAgent?: string;
   timestamp: Date;
 }
 
 /**
  * Global AsyncLocalStorage for tenant context.
- *
- * This provides thread-safe context propagation without manual passing.
+ * Provides thread-safe context propagation without manual passing.
  */
 export const tenantContext = new AsyncLocalStorage<TenantContext>();
 
 /**
  * Get current tenant context.
  *
- * @throws Error if context is not set (fail-fast)
+ * 🛡️ CRITICAL: Fails fast if context is missing.
+ * Background tasks MUST call setTenantContextForJob() or runWithTenantContext() first.
+ *
+ * @throws Error if context is not set
  */
 export function getTenantContext(): TenantContext {
   const ctx = tenantContext.getStore();
-
   if (!ctx) {
     throw new Error(
-      'CRITICAL: Tenant context not set. ' +
-        'This indicates a bug in middleware or a bypass of authentication. ' +
-        'Request must not proceed.',
+      'Tenant context not set. ' +
+        'Tenant context missing. Background tasks must call setTenantContextForJob() or runWithTenantContext(). ' +
+        'HTTP requests must pass through TenantContextMiddleware.',
     );
   }
-
   return ctx;
 }
 
-/**
- * Get tenant ID from current context.
- */
+/** Shortcut getters for tenant context */
 export function getTenantId(): string | null {
   return getTenantContext().tenantId;
 }
 
-/**
- * Get schema name from current context.
- */
 export function getSchemaName(): string {
   return getTenantContext().schemaName;
 }
 
-/**
- * Get user ID from current context.
- */
 export function getUserId(): string {
   return getTenantContext().userId;
 }
 
-/**
- * Get request ID for correlation logging.
- */
 export function getRequestId(): string {
   return getTenantContext().requestId;
 }
 
-/**
- * Check if tenant context is set (safe check without throwing).
- */
 export function hasTenantContext(): boolean {
   return tenantContext.getStore() !== undefined;
 }
 
 /**
  * Set tenant context explicitly for background jobs or cron tasks.
+ * Returns a cleanup function to restore previous context.
  *
- * CRITICAL: Background jobs MUST call this before accessing tenant data.
- * Failure to set context will result in data leaks or access denied.
- *
- * @param tenantId - Tenant UUID
- * @param userId - User UUID (use 'system' for background jobs)
- * @param requestId - Request ID for correlation (generate with uuidv4())
- * @param schemaName - Schema name (optional, auto-generated if not provided)
- * @param userEmail - User email (use 'system' for background jobs)
- * @param userRole - User role (use 'system' for background jobs)
- * @returns Cleanup function to restore previous context
- *
- * @example
- * const cleanup = setTenantContextForJob(tenantId, 'system', uuidv4());
- * try {
- *   // Do tenant-scoped work
- *   await this.tenantQueryRunner.execute('SELECT * FROM invoices');
- * } finally {
- *   cleanup(); // Always call cleanup
- * }
+ * 🛡️ PRIVILEGE MINIMIZATION: Use the most restrictive SYSTEM_* role for the job.
  */
 export function setTenantContextForJob(
   tenantId: string,
   userId: string,
   requestId: string,
   schemaName?: string,
-  userEmail: string = 'system',
-  userRole: string = 'system',
+  userEmail: string = 'system@internal',
+  userRole: string = UserRole.SYSTEM_JOB,
 ): () => void {
   const contextData: TenantContext = {
     tenantId,
@@ -119,10 +110,10 @@ export function setTenantContextForJob(
     timestamp: new Date(),
   };
 
-  // Store previous context for cleanup
+  // Capture current context for restoration
   const previousContext = tenantContext.getStore();
 
-  // Set new context
+  // Set new context for current execution
   tenantContext.enterWith(contextData);
 
   // Return cleanup function
@@ -130,7 +121,42 @@ export function setTenantContextForJob(
     if (previousContext) {
       tenantContext.enterWith(previousContext);
     } else {
-      tenantContext.exit(() => {});
+      tenantContext.disable();
     }
   };
+}
+
+/**
+ * Run an async callback within a specific tenant context.
+ * Ensures previous context is restored after callback finishes.
+ */
+export async function runWithTenantContext<T>(
+  partialContext: Partial<TenantContext> & {
+    tenantId: string;
+    userId: string;
+    userRole?: UserRole | string;
+  },
+  callback: () => Promise<T>,
+): Promise<T> {
+  if (!partialContext || !partialContext.tenantId) {
+    throw new Error('Tenant ID is required');
+  }
+  if (!partialContext.userId) {
+    throw new Error('User ID is required');
+  }
+
+  const contextData: TenantContext = {
+    tenantId: partialContext.tenantId,
+    userId: partialContext.userId,
+    requestId: partialContext.requestId || `internal-${Date.now()}`,
+    schemaName: partialContext.schemaName || `tenant_${partialContext.tenantId.replace(/-/g, '')}`,
+    userEmail: partialContext.userEmail || 'system@internal',
+    userRole: partialContext.userRole || UserRole.SYSTEM_JOB,
+    timestamp: new Date(),
+    ipAddress: partialContext.ipAddress || '127.0.0.1',
+    userAgent: partialContext.userAgent || 'Internal-Task-Runner',
+  };
+
+  // Run the callback inside the tenant context
+  return tenantContext.run(contextData, callback);
 }

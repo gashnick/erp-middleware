@@ -50,10 +50,21 @@ export class CreateUsers1705000000002 implements MigrationInterface {
   ALTER TABLE public.users ALTER COLUMN tenant_id DROP NOT NULL;
 `);
 
+    await queryRunner.query(`
+  CREATE UNIQUE INDEX idx_unique_email_null_tenant 
+  ON public.users(email) 
+  WHERE tenant_id IS NULL;
+`);
+
     console.log('✅ Users table created');
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    // 1. Remove the constraint from the tenants table first
+    await queryRunner.query(
+      `ALTER TABLE "public"."tenants" DROP CONSTRAINT IF EXISTS "fk_tenant_owner"`,
+    );
+    // 2. Now drop the table
     await queryRunner.query(`DROP TABLE IF EXISTS public.users CASCADE;`);
     console.log('✅ Users table dropped');
   }

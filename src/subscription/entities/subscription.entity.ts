@@ -9,7 +9,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Tenant } from '@tenants/entities/tenant.entity';
-import { SubscriptionPlan } from 'src/subscription-plans/entities/subscription-plan.entity';
+import { SubscriptionPlan } from '../../subscription-plans/entities/subscription-plan.entity';
 
 @Entity({ schema: 'public', name: 'subscriptions' })
 export class Subscription {

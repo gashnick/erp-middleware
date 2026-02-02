@@ -1,113 +1,107 @@
-import { MigrationInterface, QueryRunner, Table } from 'typeorm';
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export default class InitialTenantSchema1705000000004 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // 1. Customers/Vendors
-    await queryRunner.createTable(
-      new Table({
-        name: 'contacts',
-        columns: [
-          { name: 'id', type: 'uuid', isPrimary: true, default: 'gen_random_uuid()' },
-          { name: 'name', type: 'text' }, // Changed to text for encryption padding
-          { name: 'external_id', type: 'varchar', isNullable: true }, // For QB/Odoo sync
-          { name: 'contact_info', type: 'jsonb', isNullable: true },
-          { name: 'is_encrypted', type: 'boolean', default: false }, // Security tracking
-          { name: 'type', type: 'varchar' },
-        ],
-      }),
-      true,
-    );
+    // We use raw SQL to ensure TypeORM doesn't force a 'public' schema check
+    await queryRunner.query(`
+      CREATE TABLE "contacts" (
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "tenant_id" uuid NOT NULL,
+        "name" text NOT NULL,
+        "external_id" varchar,
+        "contact_info" jsonb,
+        "is_encrypted" boolean NOT NULL DEFAULT false,
+        "type" varchar NOT NULL,
+        CONSTRAINT "PK_contacts" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_contacts_tenant" FOREIGN KEY ("tenant_id") REFERENCES public.tenants("id") ON DELETE CASCADE
+      );
+      CREATE UNIQUE INDEX "IDX_CONTACT_TENANT_EXT" ON "contacts" ("tenant_id", "external_id");
 
-    // 2. Invoices (Updated for Dashboard & AI)
-    await queryRunner.createTable(
-      new Table({
-        name: 'invoices',
-        columns: [
-          { name: 'id', type: 'uuid', isPrimary: true, default: 'gen_random_uuid()' },
-          { name: 'invoice_number', type: 'text', isNullable: true }, // Encrypted
-          { name: 'customer_name', type: 'text', isNullable: true }, // Encrypted
-          { name: 'amount', type: 'decimal', precision: 15, scale: 2 },
-          { name: 'is_encrypted', type: 'boolean', default: 'false' },
-          { name: 'external_id', type: 'varchar', isNullable: true }, // Mapping to ERP
-          { name: 'currency', type: 'varchar', length: '10', default: "'USD'" },
-          { name: 'due_date', type: 'timestamp', isNullable: true },
-          { name: 'status', type: 'varchar', default: "'draft'" },
-          { name: 'metadata', type: 'jsonb', isNullable: true }, // Store AI confidence scores here
-          { name: 'created_at', type: 'timestamp', default: 'now()' },
-        ],
-      }),
-      true,
-    );
+      CREATE TABLE "invoices" (
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "tenant_id" uuid NOT NULL,
+        "invoice_number" text,
+        "customer_name" text,
+        "amount" decimal(15,2) NOT NULL,
+        "is_encrypted" boolean NOT NULL DEFAULT false,
+        "external_id" varchar,
+        "currency" varchar(10) NOT NULL DEFAULT 'USD',
+        "due_date" timestamp,
+        "status" varchar NOT NULL DEFAULT 'draft',
+        "metadata" jsonb,
+        "created_at" timestamp NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_invoices" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_invoices_tenant" FOREIGN KEY ("tenant_id") REFERENCES public.tenants("id") ON DELETE CASCADE
+      );
+      CREATE UNIQUE INDEX "IDX_INVOICE_TENANT_EXT" ON "invoices" ("tenant_id", "external_id");
 
-    // 6. AI Insights (NEW: Satisfies "Anomalies Preview Panel")
-    await queryRunner.createTable(
-      new Table({
-        name: 'ai_insights',
-        columns: [
-          { name: 'id', type: 'uuid', isPrimary: true, default: 'gen_random_uuid()' },
-          { name: 'target_entity', type: 'varchar' }, // 'invoices' or 'orders'
-          { name: 'target_id', type: 'uuid' }, // The specific record ID
-          { name: 'insight_type', type: 'varchar' }, // 'anomaly', 'prediction', 'risk'
-          { name: 'message', type: 'text' }, // "Potential duplicate detected"
-          { name: 'confidence', type: 'decimal', precision: 3, scale: 2 }, // 0.0 to 1.0
-          { name: 'created_at', type: 'timestamp', default: 'now()' },
-        ],
-      }),
-      true,
-    );
+      CREATE TABLE "products" (
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "tenant_id" uuid NOT NULL,
+        "name" varchar NOT NULL,
+        "external_id" varchar,
+        "price" decimal(15,2) NOT NULL,
+        "stock" integer NOT NULL DEFAULT 0,
+        CONSTRAINT "PK_products" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_products_tenant" FOREIGN KEY ("tenant_id") REFERENCES public.tenants("id") ON DELETE CASCADE
+      );
+      CREATE UNIQUE INDEX "IDX_PRODUCT_TENANT_EXT" ON "products" ("tenant_id", "external_id");
 
-    // 3. Products
-    await queryRunner.createTable(
-      new Table({
-        name: 'products',
-        columns: [
-          { name: 'id', type: 'uuid', isPrimary: true, default: 'gen_random_uuid()' },
-          { name: 'name', type: 'varchar' },
-          { name: 'price', type: 'decimal', precision: 15, scale: 2 },
-          { name: 'stock', type: 'integer', default: 0 },
-        ],
-      }),
-      true,
-    );
+      CREATE TABLE "orders" (
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "tenant_id" uuid NOT NULL,
+        "external_id" varchar,
+        "channel" varchar NOT NULL,
+        "amount" decimal(15,2) NOT NULL,
+        "status" varchar NOT NULL,
+        "items" jsonb NOT NULL,
+        "created_at" timestamp NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_orders" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_orders_tenant" FOREIGN KEY ("tenant_id") REFERENCES public.tenants("id") ON DELETE CASCADE
+      );
+      CREATE UNIQUE INDEX "IDX_ORDER_TENANT_EXT" ON "orders" ("tenant_id", "external_id");
 
-    // 4. Orders
-    await queryRunner.createTable(
-      new Table({
-        name: 'orders',
-        columns: [
-          { name: 'id', type: 'uuid', isPrimary: true, default: 'gen_random_uuid()' },
-          { name: 'channel', type: 'varchar' },
-          { name: 'amount', type: 'decimal', precision: 15, scale: 2 },
-          { name: 'status', type: 'varchar' },
-          { name: 'items', type: 'jsonb' },
-          { name: 'created_at', type: 'timestamp', default: 'now()' },
-        ],
-      }),
-      true,
-    );
+      CREATE TABLE "quarantine_records" (
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "tenant_id" uuid NOT NULL,
+        "source_type" varchar NOT NULL,
+        "raw_data" jsonb NOT NULL,
+        "errors" jsonb NOT NULL,
+        "status" varchar NOT NULL DEFAULT 'pending',
+        "created_at" timestamp NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_quarantine" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_quarantine_tenant" FOREIGN KEY ("tenant_id") 
+          REFERENCES public.tenants("id") ON DELETE CASCADE
+      );
 
-    // 5. Quarantine (Added for Reliability)
-    await queryRunner.createTable(
-      new Table({
-        name: 'quarantine_records',
-        columns: [
-          { name: 'id', type: 'uuid', isPrimary: true, default: 'gen_random_uuid()' },
-          { name: 'source_type', type: 'varchar' }, // e.g., 'csv', 'quickbooks'
-          { name: 'raw_data', type: 'jsonb' }, // Store the messy original data
-          { name: 'errors', type: 'jsonb' }, // Store the reasons why it failed
-          { name: 'status', type: 'varchar', default: "'pending'" }, // For the "Fix UI"
-          { name: 'created_at', type: 'timestamp', default: 'now()' },
-        ],
-      }),
-      true,
-    );
+      -- ✅ NO UNIQUE INDEX - quarantine is a log, not a deduplication table
+      -- Index for performance only:
+      CREATE INDEX "IDX_QUARANTINE_TENANT_STATUS" ON "quarantine_records"
+      ("tenant_id", "status", "created_at");
+
+      CREATE TABLE "ai_insights" (
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+        "tenant_id" uuid NOT NULL,
+        "target_entity" varchar NOT NULL,
+        "target_id" uuid NOT NULL,
+        "insight_type" varchar NOT NULL,
+        "message" text NOT NULL,
+        "confidence" decimal(3,2) NOT NULL,
+        "created_at" timestamp NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_ai_insights" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_ai_insights_tenant" FOREIGN KEY ("tenant_id") REFERENCES public.tenants("id") ON DELETE CASCADE
+      );
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.dropTable('quarantine_records');
-    await queryRunner.dropTable('orders');
-    await queryRunner.dropTable('products');
-    await queryRunner.dropTable('invoices');
-    await queryRunner.dropTable('contacts');
+    await queryRunner.query(`
+      DROP TABLE IF EXISTS "ai_insights";
+      DROP TABLE IF EXISTS "quarantine_records";
+      DROP TABLE IF EXISTS "orders";
+      DROP TABLE IF EXISTS "products";
+      DROP TABLE IF EXISTS "invoices";
+      DROP TABLE IF EXISTS "contacts";
+    `);
   }
 }

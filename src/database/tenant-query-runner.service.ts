@@ -1,152 +1,121 @@
-// src/database/tenant-query-runner.service.ts
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, QueryRunner } from 'typeorm';
-import { getTenantContext, getSchemaName, getRequestId } from '../common/context/tenant-context';
+import { getTenantContext, getRequestId } from '../common/context/tenant-context';
+import { QueryHelper } from '../common/database/query-helper';
+import { MetricsService } from '../common/metrics/metrics.service';
+import { RLSContextService } from './rls-context.service';
 
-/**
- * Tenant Query Runner Service
- * * THE CORE SERVICE for tenant-scoped database operations.
- * Updated to support 'public' schema for auth/onboarding flows.
- */
 @Injectable()
 export class TenantQueryRunnerService {
   private readonly logger = new Logger(TenantQueryRunnerService.name);
 
+  // Cache verified schemas to avoid redundant information_schema lookups
+  private verifiedSchemas = new Set<string>(['public']);
+
   constructor(
     @InjectDataSource()
     private readonly dataSource: DataSource,
+    private readonly metricsService: MetricsService,
+    @Optional()
+    @Inject('RLSContextService')
+    private readonly rlsContext?: RLSContextService,
   ) {}
 
   /**
-   * Get a QueryRunner with search_path set to tenant schema and role switched.
+   * High-performance UPSERT that bypasses TypeORM Entity metadata.
+   * Use this for batch processing in dynamic tenant schemas.
+   */
+  async upsert(
+    runner: QueryRunner,
+    tableName: string,
+    data: any[],
+    conflictPaths: string[],
+    updateColumns: string[],
+  ): Promise<any[]> {
+    const { query, parameters } = QueryHelper.buildUpsert(
+      tableName,
+      data,
+      conflictPaths,
+      updateColumns,
+    );
+
+    if (!query) return [];
+    return await runner.query(query, parameters);
+  }
+
+  /**
+   * Acquires a QueryRunner and configures the PostgreSQL search_path
+   * based on the current Tenant Context. Includes performance monitoring.
+   *
+   * 🛡️ CRITICAL: Fails fast if tenant context is missing.
+   * DB access without context is a critical security bug.
+   *
+   * 🛡️ CRITICAL: Sets RLS context (app.tenant_id) for DB-level isolation.
+   *
+   * @throws Error if tenant context is missing
+   * @returns Configured QueryRunner
    */
   async getRunner(): Promise<QueryRunner> {
-    const { schemaName, tenantId } = getTenantContext();
+    const start = process.hrtime(); // Start high-precision timer
+    const context = getTenantContext();
     const requestId = getRequestId();
 
-    // Check if we are operating in the shared public schema (Signup/Login)
-    const isPublic = schemaName === 'public';
-
-    // Validate and verify ONLY if it is a tenant-specific schema
-    if (!isPublic) {
-      this.validateSchemaName(schemaName);
-      await this.verifySchemaExists(schemaName);
+    // 🛡️ SECURITY: Fail fast if context is missing
+    // Allow access to public schema for public routes (like user registration)
+    if (!context || (!context.tenantId && context.schemaName !== 'public')) {
+      this.logger.error(
+        `[${requestId}] CRITICAL: Database access attempted without tenant context`,
+      );
+      throw new Error(
+        'Database access requires tenant context. Ensure TenantContextMiddleware is applied and tenant is authenticated.',
+      );
     }
 
-    // Create QueryRunner
-    const runner = this.dataSource.createQueryRunner();
-    await runner.connect();
-
-    // Set search_path: If public, just 'public'. If tenant, 'tenant_xxx, public'
-    const searchPath = isPublic ? 'public' : `${schemaName}, public`;
-    await runner.query(`SET search_path TO ${searchPath}`);
-
-    // Switch to tenant role for DB-level isolation ONLY for tenants
-    // Public registration needs the standard app role to write to public.users
-    // if (!isPublic) {
-    //   await runner.query(`SELECT set_tenant_role()`);
-    // }
-
-    this.logger.debug(
-      `[${requestId}] QueryRunner acquired for ${schemaName} (Mode: ${isPublic ? 'PUBLIC' : 'TENANT'})`,
-    );
-
-    return runner;
-  }
-
-  /**
-   * Execute a query with automatic QueryRunner lifecycle management.
-   */
-  async execute<T = any>(query: string, parameters?: any[]): Promise<T[]> {
-    const runner = await this.getRunner();
-    const requestId = getRequestId();
+    const { schemaName, tenantId } = context;
+    const isPublic = !schemaName || schemaName === 'public';
+    const targetSchema = isPublic ? 'public' : schemaName;
 
     try {
-      this.logger.debug(`[${requestId}] Executing query: ${query.substring(0, 100)}...`);
-      const result = await runner.query(query, parameters);
-      this.logger.debug(`[${requestId}] Query returned ${result?.length || 0} rows`);
-      return result;
+      if (!isPublic) {
+        this.validateSchemaName(targetSchema);
+        await this.ensureSchemaExists(targetSchema);
+      }
+
+      const runner = this.dataSource.createQueryRunner();
+      await runner.connect();
+
+      // Set search_path so local tables are found first, then public tables
+      const searchPath = isPublic ? 'public' : `"${targetSchema}", public`;
+      await runner.query(`SET search_path TO ${searchPath}`);
+
+      // 🛡️ CRITICAL: Set RLS context for database-level tenant isolation
+      if (this.rlsContext) {
+        await this.rlsContext.setRLSContext(runner);
+      }
+
+      // Record metrics: Calculate duration in seconds
+      const [seconds, nanoseconds] = process.hrtime(start);
+      const duration = seconds + nanoseconds / 1e9;
+      this.metricsService.recordSchemaSwitchDuration(tenantId || 'system', duration);
+
+      this.logger.debug(
+        `[${requestId}] Connection established for: ${
+          isPublic ? 'PUBLIC' : targetSchema
+        } with RLS context in ${(duration * 1000).toFixed(2)}ms`,
+      );
+
+      return runner;
     } catch (error) {
-      this.logger.error(`[${requestId}] Query failed: ${error.message}`, error.stack);
+      this.logger.error(
+        `[${requestId}] Failed to acquire runner for ${targetSchema}: ${error.message}`,
+      );
       throw error;
-    } finally {
-      await runner.release();
-      this.logger.debug(`[${requestId}] QueryRunner released`);
-    }
-  }
-  /**
-   * Helper to get tenant metadata from public schema
-   */
-  private async getTenantMetadata(tenantId: string) {
-    const [tenant] = await this.dataSource.query(
-      `SELECT schema_name FROM public.tenants WHERE id = $1`,
-      [tenantId],
-    );
-    if (!tenant) throw new Error(`Tenant ${tenantId} not found`);
-    return tenant;
-  }
-
-  /**
-   * Execute a transaction with automatic rollback on error.
-   */
-  /**
-   * Execute a transaction with automatic rollback on error.
-   * Updated to optionally accept tenantId for background tasks/ETL.
-   */
-  async transaction<T>(
-    work: (runner: QueryRunner) => Promise<T>,
-    tenantId?: string, // <--- Add this optional parameter
-  ): Promise<T> {
-    // If a tenantId is passed explicitly (like from EtlService),
-    // we could potentially fetch the schema name here if it's not in context.
-    // But for now, we'll keep using getRunner() which pulls from Context.
-
-    const runner = await this.getRunner();
-    const requestId = getRequestId();
-
-    try {
-      await runner.startTransaction();
-      this.logger.debug(`[${requestId}] Transaction started`);
-
-      const result = await work(runner);
-
-      await runner.commitTransaction();
-      this.logger.debug(`[${requestId}] Transaction committed`);
-
-      return result;
-    } catch (error) {
-      await runner.rollbackTransaction();
-      this.logger.error(`[${requestId}] Transaction rolled back: ${error.message}`, error.stack);
-      throw error;
-    } finally {
-      await runner.release();
-      this.logger.debug(`[${requestId}] QueryRunner released`);
     }
   }
 
-  /**
-   * Validate schema name format.
-   * Now allows 'public' as a valid schema name.
-   */
-  private validateSchemaName(schemaName: string): void {
-    if (schemaName === 'public') return;
-
-    // Allows 'tenant_' followed by alphanumeric characters and underscores
-    // This covers: tenant_acme_erp_corp_b0c49559
-    const validPattern = /^tenant_[a-z0-9_]+$/;
-
-    if (!validPattern.test(schemaName)) {
-      this.logger.error(`Invalid schema name format: ${schemaName}`);
-      throw new Error(`Invalid schema name: ${schemaName}.`);
-    }
-  }
-
-  /**
-   * Verify schema exists in database.
-   */
-  private async verifySchemaExists(schemaName: string): Promise<void> {
-    if (schemaName === 'public') return;
+  private async ensureSchemaExists(schemaName: string): Promise<void> {
+    if (this.verifiedSchemas.has(schemaName)) return;
 
     const result = await this.dataSource.query(
       `SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name = $1) as exists`,
@@ -154,13 +123,86 @@ export class TenantQueryRunnerService {
     );
 
     if (!result[0].exists) {
-      this.logger.error(`Schema does not exist: ${schemaName}`);
-      throw new Error(`Schema ${schemaName} does not exist.`);
+      this.logger.error(
+        `[INTERNAL] Schema verification failed. Rejecting database access. Schema: (redacted)`,
+      );
+      // 🛡️ CRITICAL: Generic error message - never reveal schema name to client
+      throw new Error('Database operation failed');
+    }
+
+    this.verifiedSchemas.add(schemaName);
+  }
+
+  private validateSchemaName(schemaName: string): void {
+    const validPattern = /^tenant_[a-z0-9_]+$/;
+    if (!validPattern.test(schemaName)) {
+      throw new Error(`Invalid schema name format: ${schemaName}`);
     }
   }
 
-  async getCurrentSchema(): Promise<string> {
-    const result = await this.dataSource.query('SHOW search_path');
-    return result[0].search_path;
+  /**
+   * Executes a one-off query within the tenant context.
+   *
+   * 🛡️ CRITICAL: Each call gets fresh schema isolation through search_path.
+   * Parameterized queries prevent SQL injection.
+   */
+  async execute<T = any>(query: string, parameters?: any[]): Promise<T[]> {
+    const runner = await this.getRunner();
+    try {
+      return await runner.query(query, parameters);
+    } finally {
+      await runner.release();
+    }
+  }
+
+  /**
+   * Wraps multiple operations in a single database transaction.
+   *
+   * 🛡️ CRITICAL: Uses SET LOCAL search_path to isolate schema within transaction.
+   * This prevents schema leakage to concurrent requests.
+   * search_path is transaction-scoped, not connection-scoped.
+   */
+  async transaction<T>(work: (runner: QueryRunner) => Promise<T>): Promise<T> {
+    const runner = await this.getRunner();
+    const context = getTenantContext();
+    const requestId = getRequestId();
+    const { schemaName } = context;
+    const isPublic = !schemaName || schemaName === 'public';
+    const targetSchema = isPublic ? 'public' : schemaName;
+
+    try {
+      await runner.startTransaction();
+
+      // 🛡️ CRITICAL: Use SET LOCAL to isolate search_path to this transaction only
+      // This is transaction-scoped, not connection-scoped, so it won't leak to other requests
+      const searchPath = isPublic ? 'public' : `"${targetSchema}", public`;
+      await runner.query(`SET LOCAL search_path TO ${searchPath}`);
+
+      const result = await work(runner);
+      await runner.commitTransaction();
+      return result;
+    } catch (error) {
+      if (runner.isTransactionActive) {
+        await runner.rollbackTransaction();
+      }
+      this.logger.error(`[${requestId}] Transaction failed: ${error.message}`);
+      throw error;
+    } finally {
+      await runner.release();
+    }
+  }
+
+  /**
+   * Helper for operations that require the TypeORM EntityManager
+   */
+  async runInTenantContext<T>(
+    work: (entityManager: QueryRunner['manager']) => Promise<T>,
+  ): Promise<T> {
+    const runner = await this.getRunner();
+    try {
+      return await work(runner.manager);
+    } finally {
+      await runner.release();
+    }
   }
 }

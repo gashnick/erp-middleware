@@ -19,6 +19,21 @@ describe('InvoicesService', () => {
             transaction: jest.fn(),
           },
         },
+        {
+          provide: (require('../../etl/services/etl.service') as any).EtlService || 'EtlService',
+          useValue: {
+            getTenantSecret: jest.fn().mockResolvedValue('test-secret'),
+          },
+        },
+        {
+          provide:
+            (require('../../common/security/encryption.service') as any).EncryptionService ||
+            'EncryptionService',
+          useValue: {
+            encrypt: jest.fn((v) => `enc:${v}`),
+            decrypt: jest.fn((v) => v),
+          },
+        },
       ],
     }).compile();
 
@@ -56,11 +71,12 @@ describe('InvoicesService', () => {
 
     jest.spyOn(tenantQueryRunner, 'execute').mockResolvedValue(mockInvoices);
 
-    const result = await service.findAll();
+    const result = await service.findAll('test-tenant-id');
 
     expect(result).toEqual(mockInvoices);
     expect(tenantQueryRunner.execute).toHaveBeenCalledWith(
       expect.stringContaining('SELECT * FROM invoices'),
+      expect.any(Array),
     );
   });
 
@@ -74,13 +90,17 @@ describe('InvoicesService', () => {
       return work(mockRunner as any);
     });
 
-    const result = await service.create({
+    // Ensure execute returns a promise so .catch() is available
+    jest.spyOn(tenantQueryRunner, 'execute').mockResolvedValue([mockInvoice]);
+
+    const result = await service.create('test-tenant-id', {
       invoice_number: 'INV-001',
       customer_name: 'Test Customer',
       amount: 1000,
     });
 
     expect(result).toEqual(mockInvoice);
-    expect(tenantQueryRunner.transaction).toHaveBeenCalled();
+    // Current implementation uses execute (single statement), not transaction
+    expect(tenantQueryRunner.execute).toHaveBeenCalled();
   });
 });

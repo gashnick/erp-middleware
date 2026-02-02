@@ -5,6 +5,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { TenantContextGuard } from '@common/guards/tenant-context.guard';
 import { Request as ExpressRequest } from 'express'; // Type
+import { getTenantContext } from '@common/context/tenant-context';
 
 @ApiTags('User Management')
 @Controller('users')
@@ -16,7 +17,9 @@ export class UsersController {
   @Post()
   @ApiOperation({ summary: 'Add a new member to the current organization' })
   async inviteUser(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+    const { tenantId } = getTenantContext();
+    // 🛡️ Passing BOTH tenantId and the dto to match the service signature
+    return this.usersService.create(tenantId || null, createUserDto);
   }
 
   @Get('me')

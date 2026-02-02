@@ -1,12 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersService } from '../users.service';
 import { TenantQueryRunnerService } from '../../database/tenant-query-runner.service';
-import { TenantContext } from '../../common/context/tenant-context';
+import { setTenantContextForJob } from '../../common/context/tenant-context';
 import { ConflictException } from '@nestjs/common';
 
 describe('UsersService (Multi-tenant)', () => {
   let service: UsersService;
   let mockDb: Partial<TenantQueryRunnerService>;
+  let cleanup: () => void;
 
   const mockTenantId = '11111111-2222-3333-4444-555555555555';
 
@@ -17,13 +18,23 @@ describe('UsersService (Multi-tenant)', () => {
     };
 
     // 2. Mock Context (Simulate Middleware)
-    jest.spyOn(TenantContext, 'getTenantId').mockReturnValue(mockTenantId);
+    // Use the public helper to set the tenant context for this test
+    cleanup = setTenantContextForJob(
+      mockTenantId,
+      'test-user',
+      'req-test',
+      `tenant_${mockTenantId.replace(/-/g, '')}`,
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [UsersService, { provide: TenantQueryRunnerService, useValue: mockDb }],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
+  });
+
+  afterEach(() => {
+    if (cleanup) cleanup();
   });
 
   describe('create', () => {
@@ -33,7 +44,7 @@ describe('UsersService (Multi-tenant)', () => {
       (mockDb.execute as jest.Mock).mockResolvedValue([{ id: 'user-123' }]);
 
       // Act
-      await service.create(dto as any);
+      await service.create(mockTenantId, dto as any);
 
       // Assert: Verify tenant_id was injected automatically
       expect(mockDb.execute).toHaveBeenCalledWith(
@@ -49,7 +60,7 @@ describe('UsersService (Multi-tenant)', () => {
       (mockDb.execute as jest.Mock).mockRejectedValue(pgError);
 
       // Act & Assert
-      await expect(service.create(dto as any)).rejects.toThrow(ConflictException);
+      await expect(service.create(mockTenantId, dto as any)).rejects.toThrow(ConflictException);
     });
   });
 });

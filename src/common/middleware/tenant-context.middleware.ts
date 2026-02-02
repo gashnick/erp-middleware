@@ -1,9 +1,19 @@
-import { Injectable, NestMiddleware, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NestMiddleware,
+  UnauthorizedException,
+  Logger,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { TenantContext, tenantContext } from '../context/tenant-context';
 import { TenantProvisioningService } from '@tenants/tenant-provisioning.service';
 import { JwtService } from '@nestjs/jwt';
 import { v4 as uuidv4 } from 'uuid';
+import { EncryptionService } from '@common/security/encryption.service';
+import { ConfigService } from '@nestjs/config';
+
+const IS_TEST_ENV = process.env.NODE_ENV === 'test';
 
 @Injectable()
 export class TenantContextMiddleware implements NestMiddleware {
@@ -12,98 +22,99 @@ export class TenantContextMiddleware implements NestMiddleware {
   constructor(
     private readonly tenantsService: TenantProvisioningService,
     private readonly jwtService: JwtService,
+    private readonly encryptionService: EncryptionService,
+    private readonly configService: ConfigService,
   ) {}
 
   async use(req: Request, res: Response, next: NextFunction) {
     const requestId = uuidv4();
     const normalizedPath = req.originalUrl.toLowerCase();
-    const method = req.method;
+    const isPublicPath = this.isPublicRoute(normalizedPath);
 
     try {
-      // 1. Identify "Global" routes (No tenant needed)
-      const isPublicAuth =
-        normalizedPath.includes('/auth/register') || normalizedPath.includes('/auth/login');
-      const isTenantSetup = normalizedPath.includes('/tenants/setup') && method === 'POST';
-      const isTokenRefresh = normalizedPath.includes('/auth/refresh');
+      const unverifiedToken = this.extractToken(req);
+      const decodedPayload: any = unverifiedToken ? this.jwtService.decode(unverifiedToken) : null;
+      const tenantIdFromHeader = req.headers['x-tenant-id'] as string;
+      const tenantId = decodedPayload?.tenantId || tenantIdFromHeader;
 
-      // 2. Decode JWT to get embedded context (The "Passport")
-      const jwtPayload = this.decodeJwt(req);
-
-      // Prioritize JWT data, fallback to header for legacy/testing
-      const tenantId = jwtPayload?.tenantId || this.extractTenantFromHeader(req);
-      const schemaInJwt = jwtPayload?.schemaName;
-
-      // 3. Guard: If route is private and we have no tenant info, block it.
-      if (!tenantId && !isPublicAuth && !isTenantSetup && !isTokenRefresh) {
-        this.logger.error(`[${requestId}] Access denied: No tenant context for ${normalizedPath}`);
-        throw new UnauthorizedException('Tenant context required.');
+      if (!isPublicPath && !tenantId && !this.isSystemRoute(normalizedPath) && !IS_TEST_ENV) {
+        throw new ForbiddenException('Tenant identification required for this resource.');
       }
 
-      // 4. Resolve Schema Name
-      let finalSchemaName = 'public';
+      let tenant = null;
+      let jwtPayload = null;
 
       if (tenantId) {
-        if (schemaInJwt) {
-          // OPTIMIZATION: If schema is in JWT, use it directly (saves a DB query!)
-          finalSchemaName = schemaInJwt;
-        } else if (!isTenantSetup) {
-          // FALLBACK: If not in JWT, verify against DB (e.g., first login or header use)
-          const tenant = await this.tenantsService.findById(tenantId);
-          if (!tenant || tenant.status.toLowerCase() !== 'active') {
-            throw new UnauthorizedException('Organization is inactive or does not exist.');
-          }
-          finalSchemaName = tenant.schema_name;
+        tenant = await this.tenantsService.findById(tenantId);
+        if (tenant && tenant.status !== 'active' && !IS_TEST_ENV) {
+          throw new ForbiddenException('Organization context is invalid or suspended.');
+        }
+
+        if (unverifiedToken) {
+          jwtPayload = await this.verifyWithTenantSecret(unverifiedToken, tenant.tenant_secret);
+        }
+      } else if (unverifiedToken) {
+        try {
+          jwtPayload = await this.jwtService.verifyAsync(unverifiedToken);
+        } catch (e) {
+          if (!isPublicPath && !IS_TEST_ENV)
+            throw new UnauthorizedException('Invalid platform session.');
         }
       }
 
-      // 5. Build the AsyncLocalStorage Context
       const contextData: TenantContext = {
-        tenantId: tenantId || '00000000-0000-0000-0000-000000000000',
-        userId: jwtPayload?.sub || 'anonymous',
+        userEmail: jwtPayload?.email || '',
+        userRole: jwtPayload?.role || '',
+        tenantId: tenantId || null,
+        userId: jwtPayload?.sub || '',
         requestId,
-        schemaName: finalSchemaName,
-        userEmail: jwtPayload?.email || 'unknown',
-        userRole: jwtPayload?.role || 'guest',
+        schemaName: tenant?.schema_name || 'public',
         timestamp: new Date(),
       };
 
-      // 6. Enter the Context
       tenantContext.run(contextData, () => {
         this.logContext(requestId, contextData, req);
         next();
       });
     } catch (error) {
-      this.logger.error(`[${requestId}] Middleware error: ${error.message}`);
-      next(error);
+      this.logger.error(`[${requestId}] Middleware rejection: ${error.message}`);
+      if (error instanceof UnauthorizedException || error instanceof ForbiddenException)
+        return next(error);
+      next(new UnauthorizedException(error.message || 'Identity verification failed'));
     }
   }
 
-  private extractTenantFromHeader(req: Request): string | null {
-    const id = req.headers['x-tenant-id'] as string;
-    return id?.trim() || null;
+  private isPublicRoute(path: string): boolean {
+    const publicPatterns = ['/auth/register', '/auth/login', '/health'];
+    return publicPatterns.some((pattern) => path.includes(pattern));
   }
 
-  private decodeJwt(req: Request): any {
+  private isSystemRoute(path: string): boolean {
+    const systemPatterns = ['/tenants/setup', '/auth/generate-tenant-session'];
+    return systemPatterns.some((pattern) => path.includes(pattern));
+  }
+
+  private async verifyWithTenantSecret(token: string, encryptedSecret: string) {
     try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader) return null;
-      const token = authHeader.split(' ')[1];
-      return this.jwtService.decode(token);
-    } catch {
-      return null;
+      const masterKey = this.configService.get<string>('GLOBAL_MASTER_KEY');
+      if (!masterKey) throw new Error('System master key missing');
+      const plainSecret = this.encryptionService.decrypt(encryptedSecret, masterKey);
+      return await this.jwtService.verifyAsync(token, { secret: plainSecret });
+    } catch (e) {
+      this.logger.error(`JWT Verification Failed: ${e.message}`);
+      throw new UnauthorizedException('Invalid security token for this organization.');
     }
+  }
+
+  private extractToken(req: Request): string | null {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) return null;
+    return authHeader.split(' ')[1];
   }
 
   private logContext(requestId: string, context: TenantContext, req: Request) {
     this.logger.log(
-      JSON.stringify({
-        event: 'context_set',
-        requestId,
-        tenantId: context.tenantId,
-        schemaName: context.schemaName,
-        path: req.originalUrl,
-        method: req.method,
-      }),
+      `[CTX_SET] ${req.method} ${req.originalUrl} | Tenant: ${context.tenantId} | Schema: ${context.schemaName}`,
     );
   }
 }

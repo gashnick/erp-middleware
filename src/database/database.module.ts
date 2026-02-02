@@ -5,6 +5,8 @@ import { ConfigModule } from '../config/config.module';
 import { TenantConnectionService } from './tenant-connection.service';
 import { TenantMigrationRunnerService } from './tenant-migration-runner.service';
 import { TenantQueryRunnerService } from './tenant-query-runner.service';
+import { MetricsModule } from '@common/metrics/metrics.module';
+import { RLSContextService } from './rls-context.service';
 
 const ormOptions = {
   type: 'postgres',
@@ -33,12 +35,13 @@ const ormOptions = {
 } as any;
 
 @Module({
-  imports: [ConfigModule, TypeOrmModule.forRoot(ormOptions)],
+  imports: [ConfigModule, TypeOrmModule.forRoot(ormOptions), MetricsModule],
   providers: [
     DatabaseService,
     TenantConnectionService,
     TenantMigrationRunnerService,
     TenantQueryRunnerService,
+    RLSContextService,
   ],
   exports: [
     DatabaseService,

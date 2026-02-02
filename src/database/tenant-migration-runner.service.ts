@@ -44,70 +44,47 @@ export class TenantMigrationRunnerService {
    *
    * @param schemaName - Tenant schema name (e.g., 'tenant_abc123')
    */
-  async runMigrations(schemaName: string): Promise<{
-    executed: string[];
-    skipped: string[];
-    errors: string[];
-  }> {
+  async runMigrations(
+    schemaName: string,
+  ): Promise<{ executed: string[]; skipped: string[]; errors: string[] }> {
     this.logger.log(`Running migrations for schema: ${schemaName}`);
 
     const runner = this.dataSource.createQueryRunner();
     await runner.connect();
 
-    const result: {
-      executed: string[];
-      skipped: string[];
-      errors: string[];
-    } = {
-      executed: [],
-      skipped: [],
-      errors: [],
-    };
+    const result = { executed: [] as string[], skipped: [] as string[], errors: [] as string[] };
 
     try {
-      // Set schema
-      await runner.query(`SET search_path TO ${schemaName}, public`);
+      // 🌟 FIX: Use double quotes to safely wrap the schema name
+      await runner.query(`SET search_path TO "${schemaName}", public`);
 
-      // Ensure migrations table exists
       await this.ensureMigrationsTable(runner, schemaName);
 
-      // Get executed migrations
       const executed = await this.getExecutedMigrations(runner);
       const executedNames = new Set(executed.map((m) => m.name));
-
-      // Get migration files
       const files = this.getMigrationFiles();
 
       for (const file of files) {
         const migrationName = file.replace(/\.(ts|js)$/, '');
 
         if (executedNames.has(migrationName)) {
-          this.logger.debug(`⏭️  Skipping ${migrationName} (already executed)`);
           result.skipped.push(migrationName);
           continue;
         }
 
         try {
-          this.logger.log(`▶️  Running ${migrationName}`);
-
-          // Load migration
+          this.logger.log(`▶️ Running ${migrationName}`);
           const migration = require(join(this.migrationDir, file));
-          const instance = new migration.default();
+          const instance = new (migration.default || migration)();
 
-          // Execute in transaction
           await runner.startTransaction();
           try {
             await instance.up(runner);
-
-            // Record migration
             await runner.query(
-              `INSERT INTO migrations (name, timestamp, executed_at) 
-               VALUES ($1, $2, NOW())`,
+              `INSERT INTO "${schemaName}".migrations (name, timestamp, executed_at) VALUES ($1, $2, NOW())`,
               [migrationName, Date.now()],
             );
-
             await runner.commitTransaction();
-            this.logger.log(`✅ ${migrationName}`);
             result.executed.push(migrationName);
           } catch (error) {
             await runner.rollbackTransaction();
@@ -116,16 +93,8 @@ export class TenantMigrationRunnerService {
         } catch (error) {
           this.logger.error(`❌ ${migrationName} failed: ${error.message}`);
           result.errors.push(`${migrationName}: ${error.message}`);
-          // Continue with next migration
         }
       }
-
-      this.logger.log(
-        `Migrations complete for ${schemaName}: ` +
-          `${result.executed.length} executed, ` +
-          `${result.skipped.length} skipped, ` +
-          `${result.errors.length} errors`,
-      );
     } finally {
       await runner.release();
     }
@@ -133,6 +102,41 @@ export class TenantMigrationRunnerService {
     return result;
   }
 
+  /**
+   * Ensure migrations table exists in schema.
+   */
+
+  private async ensureMigrationsTable(runner: QueryRunner, schemaName: string): Promise<void> {
+    await runner.query(`
+      CREATE TABLE IF NOT EXISTS "${schemaName}".migrations (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        timestamp BIGINT NOT NULL,
+        executed_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
+  }
+
+  /**
+   * Get executed migrations from migrations table.
+   */
+  private async getExecutedMigrations(runner: QueryRunner): Promise<MigrationRecord[]> {
+    return runner.query('SELECT * FROM migrations ORDER BY timestamp ASC');
+  }
+
+  /**
+   * Get migration files from disk.
+   */
+  private getMigrationFiles(): string[] {
+    try {
+      return readdirSync(this.migrationDir)
+        .filter((f) => f.endsWith('.ts') || f.endsWith('.js'))
+        .sort();
+    } catch (error) {
+      this.logger.error(`Failed to read migration directory: ${error.message}`);
+      return [];
+    }
+  }
   /**
    * Run migrations for all tenant schemas.
    *
@@ -212,25 +216,8 @@ export class TenantMigrationRunnerService {
   }
 
   /**
-   * Ensure migrations table exists in schema.
-   */
-  private async ensureMigrationsTable(runner: QueryRunner, schemaName: string): Promise<void> {
-    await runner.query(`
-      CREATE TABLE IF NOT EXISTS ${schemaName}.migrations (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL UNIQUE,
-        timestamp BIGINT NOT NULL,
-        executed_at TIMESTAMP NOT NULL DEFAULT NOW()
-      )
-    `);
-  }
-
-  /**
    * Get executed migrations from migrations table.
    */
-  private async getExecutedMigrations(runner: QueryRunner): Promise<MigrationRecord[]> {
-    return runner.query('SELECT * FROM migrations ORDER BY timestamp ASC');
-  }
 
   /**
    * Get all tenant schemas from database.
@@ -244,19 +231,5 @@ export class TenantMigrationRunnerService {
     )) as { schema_name: string }[];
 
     return result.map((r) => r.schema_name);
-  }
-
-  /**
-   * Get migration files from disk.
-   */
-  private getMigrationFiles(): string[] {
-    try {
-      return readdirSync(this.migrationDir)
-        .filter((f) => f.endsWith('.ts') || f.endsWith('.js'))
-        .sort(); // Sort by name (timestamp prefix ensures correct order)
-    } catch (error) {
-      this.logger.error(`Failed to read migration directory: ${error.message}`);
-      return [];
-    }
   }
 }

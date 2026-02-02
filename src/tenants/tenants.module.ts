@@ -1,10 +1,11 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TenantsController } from './tenants.controller';
 import { Tenant } from './entities/tenant.entity';
 import { DatabaseModule } from '@database/database.module';
 import { TenantProvisioningService } from './tenant-provisioning.service';
 import { EncryptionModule } from '@common/security/encryption.module';
+import { AuthModule } from '@auth/auth.module';
 
 /**
  * Tenants Module
@@ -23,6 +24,7 @@ import { EncryptionModule } from '@common/security/encryption.module';
     TypeOrmModule.forFeature([Tenant]),
     DatabaseModule,
     EncryptionModule,
+    forwardRef(() => AuthModule),
   ],
   controllers: [TenantsController],
   providers: [TenantProvisioningService],

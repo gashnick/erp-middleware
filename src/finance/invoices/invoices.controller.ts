@@ -1,35 +1,37 @@
-import { Controller, Post, Body, Req, UseGuards, Get } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { UpdateInvoiceDto } from './dto/update-invoice.dto';
+import { TenantGuard } from '@common/guards/tenant.guard';
+import { ActiveTenant } from '@common/decorators/active-tenant.decorator';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
-import { TenantContextGuard } from '@common/guards/tenant-context.guard';
-import { getTenantContext } from '@common/context/tenant-context';
-import { TenantQueryRunnerService } from '@database/tenant-query-runner.service';
 
-interface AuthenticatedRequest extends Request {
-  user: {
-    userId: string;
-    tenantId: string;
-    role: string;
-  };
-}
 @Controller('invoices')
-@UseGuards(JwtAuthGuard, TenantContextGuard)
+@UseGuards(JwtAuthGuard, TenantGuard) // 🛡️ TenantGuard ensures tenantId exists before reaching here
 export class InvoicesController {
-  constructor(
-    private readonly invoicesService: InvoicesService,
-    private readonly tenantDb: TenantQueryRunnerService,
-  ) {}
+  constructor(private readonly invoicesService: InvoicesService) {}
 
   @Post()
-  async create(@Body() dto: CreateInvoiceDto) {
-    const { schemaName } = getTenantContext();
-    return this.invoicesService.create(dto, schemaName);
+  async create(@ActiveTenant('id') tenantId: string, @Body() dto: CreateInvoiceDto) {
+    return this.invoicesService.create(tenantId, dto);
   }
 
   @Get()
-  async findAll(@Req() req: AuthenticatedRequest) {
-    // Pass the tenantId from the JWT token to the service for decryption
-    return this.invoicesService.findAll(req.user.tenantId);
+  async findAll(@ActiveTenant('id') tenantId: string) {
+    return this.invoicesService.findAll(tenantId);
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string, @ActiveTenant('id') tenantId: string) {
+    return this.invoicesService.findOne(id, tenantId);
+  }
+
+  @Patch(':id')
+  async update(
+    @Param('id') id: string,
+    @ActiveTenant('id') tenantId: string,
+    @Body() dto: UpdateInvoiceDto,
+  ) {
+    return this.invoicesService.update(id, tenantId, dto);
   }
 }

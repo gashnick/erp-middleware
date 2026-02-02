@@ -1,25 +1,28 @@
-// // src/common/metrics/metrics.service.ts
-// import { Injectable } from '@nestjs/common';
-// import { Counter, Histogram } from 'prom-client';
+// src/common/metrics/metrics.service.ts
+import { Injectable } from '@nestjs/common';
+import { Counter, Histogram } from 'prom-client';
 
-// @Injectable()
-// export class MetricsService {
-//   private readonly tenantContextMissingCounter = new Counter({
-//     name: 'tenant_context_missing_total',
-//     help: 'Total number of requests with missing tenant context',
-//   });
+@Injectable()
+export class MetricsService {
+  // Tracks missing context (Security/Guard issues)
+  private readonly tenantContextMissingCounter = new Counter({
+    name: 'tenant_context_missing_total',
+    help: 'Total number of requests with missing tenant context',
+  });
 
-//   private readonly schemaSwitch Duration = new Histogram({
-//     name: 'schema_switch_duration_seconds',
-//     help: 'Time taken to switch schemas',
-//     buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1],
-//   });
+  // Tracks latency of switching schemas (Postgres Overhead)
+  private readonly schemaSwitchDuration = new Histogram({
+    name: 'schema_switch_duration_seconds',
+    help: 'Time taken to switch schemas per tenant',
+    labelNames: ['tenant_id'],
+    buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5], // Precise buckets for DB ops
+  });
 
-//   recordMissingContext() {
-//     this.tenantContextMissingCounter.inc();
-//   }
+  recordMissingContext() {
+    this.tenantContextMissingCounter.inc();
+  }
 
-//   recordSchemaSwitchDuration(duration: number) {
-//     this.schemaSwitchDuration.observe(duration);
-//   }
-// }
+  recordSchemaSwitchDuration(tenantId: string, duration: number) {
+    this.schemaSwitchDuration.labels(tenantId).observe(duration);
+  }
+}

@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { ConfigService } from '../config/config.service';
+import { runWithTenantContext, UserRole } from '../common/context/tenant-context';
 
 /**
  * Database Service
@@ -35,7 +36,17 @@ export class DatabaseService implements OnModuleInit {
    */
   async checkConnection(): Promise<boolean> {
     try {
-      await this.dataSource.query('SELECT 1');
+      // Health check queries should bypass RLS using system context
+      await runWithTenantContext(
+        {
+          tenantId: 'system-health-check',
+          userId: 'health-check',
+          userRole: UserRole.SYSTEM_READONLY,
+        },
+        async () => {
+          await this.dataSource.query('SELECT 1');
+        },
+      );
       console.log('✅ Database connection healthy');
       return true;
     } catch (error) {
