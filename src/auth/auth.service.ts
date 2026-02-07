@@ -1,14 +1,14 @@
+// src/auth/auth.service.ts
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { TenantProvisioningService } from '@tenants/tenant-provisioning.service';
 import { EncryptionService } from '@common/security/encryption.service';
 import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { Repository } from 'typeorm';
-import { randomBytes, createHash } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -24,17 +24,33 @@ export class AuthService {
     private readonly refreshTokenRepo: Repository<RefreshToken>,
   ) {}
 
-  async validateUser(email: string, password: string) {
+  /**
+   * Validates credentials against the shared public users table
+   */
+  async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.usersService.findByEmail(email);
-    if (!user) return null;
 
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return null;
+    // Defensive check for bcryptjs:
+    // It will throw if 'pass' or 'user.password_hash' are not strings.
+    if (!user || typeof user.password_hash !== 'string') {
+      return null;
+    }
 
-    const { password_hash, ...result } = user;
-    return result;
+    const isMatch = await bcrypt.compare(pass, user.password_hash);
+
+    if (isMatch) {
+      const { password_hash, ...result } = user;
+      return result;
+    }
+
+    return null;
   }
 
+  /**
+   * INITIAL LOGIN: System/Public level
+   * Used for users without a tenant or as the first step of authentication.
+   * Only generates access token - no refresh token for null tenant.
+   */
   async login(user: any) {
     const payload = {
       sub: user.id,
@@ -45,58 +61,49 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload);
-    const refreshTokenPlain = randomBytes(64).toString('hex');
-    const refreshTokenHash = this.hashToken(refreshTokenPlain);
-
-    await this.refreshTokenRepo.save({
-      user: { id: user.id } as any,
-      tokenHash: refreshTokenHash,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    });
-
+    
+    // Don't generate refresh token for null tenant - user needs to create/join tenant first
     return {
       access_token: accessToken,
-      refresh_token: refreshTokenPlain,
       user: { id: user.id, email: user.email, tenantId: null, role: user.role },
     };
   }
 
-  async refresh(refreshToken: string) {
-    const hash = this.hashToken(refreshToken);
-    const stored = await this.refreshTokenRepo.findOne({
-      where: { tokenHash: hash, isRevoked: false },
-      relations: ['user'],
-    });
+  /**
+   * UNIVERSAL REFRESH
+   * Only works for tenant JWTs since public sessions don't have refresh tokens
+   */
+  async refresh(token: string) {
+    const isJwt = token.split('.').length === 3;
 
-    if (!stored || stored.expiresAt < new Date()) {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+    if (isJwt) {
+      return this.refreshTenantSession(token);
     }
 
-    // Generate new access token (system login)
-    const payload = {
-      sub: stored.user.id,
-      email: stored.user.email,
-      role: stored.user.role,
-      tenantId: null,
-      schemaName: 'public',
-    };
-
-    const accessToken = this.jwtService.sign(payload);
-
-    return { access_token: accessToken };
+    // Public sessions don't have refresh tokens - user must re-login
+    throw new UnauthorizedException('Public sessions require re-authentication');
   }
 
   /**
-   * TENANT MODE: Elevation
-   * Generates tokens signed with the UNIQUE tenant secret.
-   * Now returns BOTH access_token and refresh_token for consistency.
+   * TENANT SESSION ELEVATION
+   * Generates tokens signed with the unique Tenant Secret.
    */
-  async generateTenantSession(userId: string) {
+  async generateTenantSession(userId: string, tenantId?: string) {
     const user = await this.usersService.findById(userId);
-    if (!user || !user.tenant_id) throw new UnauthorizedException('User not linked to a tenant');
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
 
-    const tenant = await this.tenantsService.findById(user.tenant_id);
-    if (!tenant) throw new UnauthorizedException('Tenant not found');
+    // Use provided tenantId or fall back to user's tenant_id
+    const effectiveTenantId = tenantId || user.tenant_id;
+    if (!effectiveTenantId) {
+      throw new UnauthorizedException('User not linked to a tenant');
+    }
+
+    const tenant = await this.tenantsService.findById(effectiveTenantId);
+    if (!tenant) {
+      throw new UnauthorizedException('Tenant not found');
+    }
 
     const masterKey = this.configService.get<string>('GLOBAL_MASTER_KEY')!;
     const decryptedSecret = this.encryptionService.decrypt(tenant.tenant_secret, masterKey);
@@ -105,24 +112,81 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       role: user.role,
-      tenantId: user.tenant_id,
+      tenantId: effectiveTenantId,
       schemaName: tenant.schema_name,
     };
 
-    // Generate both access and refresh tokens signed with tenant secret
-    const accessToken = this.jwtService.sign(payload, { secret: decryptedSecret });
-    const refreshToken = this.jwtService.sign(payload, {
+    const access = this.jwtService.sign(payload, {
+      secret: decryptedSecret,
+      expiresIn: '1h',
+    });
+
+    const refresh = this.jwtService.sign(payload, {
       secret: decryptedSecret,
       expiresIn: '7d',
     });
 
+    // Temporary debug logs to trace token payloads during E2E
+    try {
+      const decodedAccess = this.jwtService.decode(access) as any;
+      const decodedRefresh = this.jwtService.decode(refresh) as any;
+      this.logger.debug(`Generated tenant access token payload: ${JSON.stringify(decodedAccess)}`);
+      this.logger.debug(
+        `Generated tenant refresh token payload: ${JSON.stringify(decodedRefresh)}`,
+      );
+    } catch (e) {
+      this.logger.warn(`Failed to decode generated tokens for debug: ${e.message}`);
+    }
+
     return {
-      access_token: accessToken,
-      refresh_token: refreshToken,
+      access_token: access,
+      refresh_token: refresh,
+      user: {
+        // Added user object
+        id: user.id,
+        email: user.email,
+        tenantId: effectiveTenantId,
+        role: user.role,
+      },
     };
   }
 
-  private hashToken(token: string) {
-    return createHash('sha256').update(token).digest('hex');
+  /** ==========================================================================
+   * PRIVATE HELPERS
+   * ========================================================================= */
+
+  private async refreshTenantSession(refreshToken: string) {
+    try {
+      const decoded = this.jwtService.decode(refreshToken) as any;
+      if (!decoded?.tenantId) throw new Error();
+
+      const tenant = await this.tenantsService.findById(decoded.tenantId);
+      const masterKey = this.configService.get<string>('GLOBAL_MASTER_KEY')!;
+      const secret = this.encryptionService.decrypt(tenant.tenant_secret, masterKey);
+
+      const payload = await this.jwtService.verifyAsync(refreshToken, { secret });
+
+      const newPayload = {
+        sub: payload.sub,
+        email: payload.email,
+        role: payload.role,
+        tenantId: payload.tenantId,
+        schemaName: payload.schemaName,
+      };
+
+      // Generate new refresh token
+      const newRefreshToken = this.jwtService.sign(newPayload, {
+        secret,
+        expiresIn: '7d',
+      });
+
+      return {
+        access_token: this.jwtService.sign(newPayload, { secret, expiresIn: '1h' }),
+        refresh_token: newRefreshToken, // Added refresh_token
+      };
+    } catch (e) {
+      this.logger.warn(`Tenant refresh attempt failed: ${e.message}`);
+      throw new UnauthorizedException('Invalid tenant refresh token');
+    }
   }
 }

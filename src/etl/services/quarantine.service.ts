@@ -11,59 +11,64 @@ export class QuarantineService {
 
   async getPaginated(tenantId: string, filter: QuarantineFilterDto) {
     const { limit, offset, source } = filter;
-    let query = `SELECT * FROM quarantine_records WHERE tenant_id = $1`;
-    const params: any[] = [tenantId];
 
-    if (source) {
-      params.push(source);
-      query += ` AND source_type = $${params.length}`;
-    }
+    return await this.tenantDb.transaction(async (runner) => {
+      let baseQuery = `WHERE tenant_id = $1`;
+      const params: any[] = [tenantId];
 
-    const dataQuery = `${query} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-    const countQuery = `SELECT COUNT(*) as total FROM (${query}) as subquery`;
+      if (source) {
+        params.push(source);
+        baseQuery += ` AND source_type = $${params.length}`;
+      }
 
-    const [data, countRes] = await Promise.all([
-      this.tenantDb.execute<IQuarantineRecord>(dataQuery, [...params, limit, offset]),
-      this.tenantDb.execute(countQuery, params),
-    ]);
+      const data = await runner.query(
+        `SELECT * FROM quarantine_records ${baseQuery} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, limit, offset],
+      );
 
-    return { data, total: parseInt(countRes[0].total, 10) };
+      const countRes = await runner.query(
+        `SELECT COUNT(*) as total FROM quarantine_records ${baseQuery}`,
+        params,
+      );
+
+      return { data, total: parseInt(countRes[0].total, 10) };
+    });
   }
 
   async getSyncStatus(tenantId: string): Promise<SyncStatusDto> {
-    const [invoiceRes, quarantineRes] = await Promise.all([
-      this.tenantDb.execute(`SELECT COUNT(*) as count FROM invoices WHERE tenant_id = $1`, [
-        tenantId,
-      ]),
-      this.tenantDb.execute(
+    return await this.tenantDb.transaction(async (runner) => {
+      const [inv] = await runner.query(
+        `SELECT COUNT(*) as count FROM invoices WHERE tenant_id = $1`,
+        [tenantId],
+      );
+      const [qua] = await runner.query(
         `SELECT COUNT(*) as count FROM quarantine_records WHERE tenant_id = $1`,
         [tenantId],
-      ),
-    ]);
+      );
 
-    const totalInvoices = parseInt(invoiceRes[0].count, 10);
-    const quarantineCount = parseInt(quarantineRes[0].count, 10);
-    const totalProcessed = totalInvoices + quarantineCount;
+      const totalInvoices = parseInt(inv.count, 10);
+      const quarantineCount = parseInt(qua.count, 10);
+      const total = totalInvoices + quarantineCount;
 
-    return {
-      totalInvoices,
-      quarantineCount,
-      healthPercentage:
-        totalProcessed > 0 ? ((totalInvoices / totalProcessed) * 100).toFixed(1) + '%' : '100%',
-      latestActivity: { timestamp: new Date().toISOString() },
-    };
+      return {
+        totalInvoices,
+        quarantineCount,
+        healthPercentage: total > 0 ? ((totalInvoices / total) * 100).toFixed(1) + '%' : '100%',
+        latestActivity: { timestamp: new Date().toISOString() },
+      };
+    });
   }
 
   async findById(tenantId: string, recordId: string): Promise<IQuarantineRecord | null> {
-    const [record] = await this.tenantDb.execute<IQuarantineRecord>(
+    const records = await this.tenantDb.executeTenant<IQuarantineRecord>(
       `SELECT * FROM quarantine_records WHERE id = $1 AND tenant_id = $2`,
       [recordId, tenantId],
     );
-    return record || null;
+    return records[0] || null;
   }
 
   async findManyByIds(tenantId: string, ids: string[]): Promise<IQuarantineRecord[]> {
-    return this.tenantDb.execute<IQuarantineRecord>(
+    return this.tenantDb.executeTenant<IQuarantineRecord>(
       `SELECT * FROM quarantine_records WHERE id = ANY($1) AND tenant_id = $2`,
       [ids, tenantId],
     );

@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsObject } from 'class-validator';
 
 export class RetryRecordDto {
   @ApiProperty({
@@ -9,6 +10,8 @@ export class RetryRecordDto {
       customer_name: 'John Doe',
     },
   })
+  @IsObject()
+  @IsNotEmpty()
   fixedData: any;
 }
 

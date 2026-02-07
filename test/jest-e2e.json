@@ -2,9 +2,22 @@
   "moduleFileExtensions": ["js", "json", "ts"],
   "rootDir": "..",
   "testEnvironment": "node",
-  "testRegex": ".e2e-spec.ts$",
+  "testRegex": ".*\\.e2e-spec\\.ts$",
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "^.+\\.(t|j)s$": [
+      "ts-jest",
+      {
+        "tsconfig": {
+          "experimentalDecorators": true,
+          "emitDecoratorMetadata": true,
+          "esModuleInterop": true,
+          "allowSyntheticDefaultImports": true,
+          "target": "ES2021",
+          "module": "commonjs",
+          "skipLibCheck": true
+        }
+      }
+    ]
   },
   "transformIgnorePatterns": ["node_modules/(?!(uuid)/)"],
   "moduleNameMapper": {
@@ -14,7 +27,7 @@
     "^@tenants/(.*)$": "<rootDir>/src/tenants/$1",
     "^@users/(.*)$": "<rootDir>/src/users/$1",
     "^@subscription/(.*)$": "<rootDir>/src/subscription/$1",
-    "subscription-plans/(.*)$": "<rootDir>/src/subscription-plans/$1",
+    "^@subscription-plans/(.*)$": "<rootDir>/src/subscription-plans/$1",
     "^@connectors/(.*)$": "<rootDir>/src/connectors/$1",
     "^@finance/(.*)$": "<rootDir>/src/finance/$1",
     "^@dashboards/(.*)$": "<rootDir>/src/dashboards/$1",
@@ -23,5 +36,37 @@
     "^@audit/(.*)$": "<rootDir>/src/audit/$1",
     "^@common/(.*)$": "<rootDir>/src/common/$1",
     "^@etl/(.*)$": "<rootDir>/src/etl/$1"
-  }
+  },
+  "testTimeout": 60000,
+  "maxWorkers": 1,
+  "bail": false,
+  "verbose": true,
+  "detectOpenHandles": true,
+  "forceExit": true,
+  "collectCoverageFrom": [
+    "src/**/*.{ts,js}",
+    "!src/**/*.spec.ts",
+    "!src/**/*.e2e-spec.ts",
+    "!src/**/*.module.ts",
+    "!src/**/index.ts",
+    "!src/main.ts",
+    "!src/**/*.interface.ts",
+    "!src/**/*.dto.ts",
+    "!src/**/*.entity.ts"
+  ],
+  "coverageDirectory": "<rootDir>/coverage-e2e",
+  "coverageReporters": ["text", "lcov", "html"],
+  "coverageThreshold": {
+    "global": {
+      "branches": 0,
+      "functions": 0,
+      "lines": 0,
+      "statements": 0
+    }
+  },
+  "setupFilesAfterEnv": ["<rootDir>/test/setup/jest-setup.ts"],
+  "globalSetup": "<rootDir>/test/setup/global-setup.ts",
+  "globalTeardown": "<rootDir>/test/setup/global-teardown.ts",
+  "moduleDirectories": ["node_modules", "src"],
+  "testPathIgnorePatterns": ["/node_modules/", "/dist/", "/.next/", "/coverage/"]
 }

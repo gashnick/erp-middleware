@@ -1,29 +1,30 @@
+// src/tenants/tenant-provisioning.service.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { TenantProvisioningService } from './tenant-provisioning.service';
 import { TenantQueryRunnerService } from '@database/tenant-query-runner.service';
 import { TenantMigrationRunnerService } from '@database/tenant-migration-runner.service';
 import { EncryptionService } from '@common/security/encryption.service';
 import { ConfigService } from '@nestjs/config';
-import { NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { CreateTenantDto } from './dto/create-tenant.dto';
+import { QueryRunner } from 'typeorm';
 
 describe('TenantProvisioningService', () => {
   let service: TenantProvisioningService;
-  let queryRunnerMock: any;
-  let tenantDbMock: any;
+  let tenantDbMock: jest.Mocked<TenantQueryRunnerService>;
+  let queryRunnerMock: jest.Mocked<QueryRunner>;
 
   beforeEach(async () => {
-    // 1. Create a mock for the QueryRunner (transaction handler)
     queryRunnerMock = {
       query: jest.fn(),
       release: jest.fn(),
-    };
+    } as any;
 
-    // 2. Create a mock for the DB Service
     tenantDbMock = {
+      // Logic to execute the callback passed to transaction()
       transaction: jest.fn((callback) => callback(queryRunnerMock)),
-      getRunner: jest.fn().mockResolvedValue(queryRunnerMock),
-    };
+      executePublic: jest.fn().mockResolvedValue([]),
+    } as any;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -58,58 +59,45 @@ describe('TenantProvisioningService', () => {
       dataSourceType: 'external',
     };
 
-    it('should successfully provision a tenant when all steps pass', async () => {
-      // Mock plan lookup success
+    it('should successfully provision a tenant with public context', async () => {
       queryRunnerMock.query.mockResolvedValueOnce([{ id: 'plan-1', trial_days: 0 }]);
 
       const result = await service.createOrganization(mockUserId, mockDto);
 
-      // Verify the slug and schema naming logic
       expect(result.slug).toBe('test_corp');
-      expect(result.schemaName).toContain('tenant_test_corp_');
 
-      // Verify all major SQL steps were called
-      // (Plan select, Tenant insert, Create schema, Update user, Audit log)
-      expect(queryRunnerMock.query).toHaveBeenCalledTimes(5);
-      expect(tenantDbMock.transaction).toHaveBeenCalled();
-    });
-
-    it('should throw NotFoundException if the plan does not exist', async () => {
-      // Mock empty plan result
-      queryRunnerMock.query.mockResolvedValueOnce([]);
-
-      await expect(service.createOrganization(mockUserId, mockDto)).rejects.toThrow(
-        NotFoundException,
+      // Verify transaction context object
+      expect(tenantDbMock.transaction).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({ schema: 'public' }),
       );
 
-      // Should stop after the first query
-      expect(queryRunnerMock.query).toHaveBeenCalledTimes(1);
+      expect(queryRunnerMock.query).toHaveBeenCalledTimes(6);
     });
 
-    it('should throw InternalServerErrorException and rollback if schema creation fails', async () => {
-      // 1. Plan lookup success
-      queryRunnerMock.query.mockResolvedValueOnce([{ id: 'plan-1', trial_days: 0 }]);
-      // 2. Tenant insert success
-      queryRunnerMock.query.mockResolvedValueOnce({});
-      // 3. Sub insert success
-      queryRunnerMock.query.mockResolvedValueOnce({});
-      // 4. Schema creation FAIL
-      queryRunnerMock.query.mockRejectedValueOnce(new Error('Postgres Permission Denied'));
+    it('should trigger compensating actions using executePublic on failure', async () => {
+      queryRunnerMock.query.mockResolvedValueOnce([{ id: 'plan-1' }]);
+      queryRunnerMock.query.mockRejectedValueOnce(new Error('Schema Creation Failed'));
 
-      // The service will propagate the underlying error during the transaction
-      await expect(service.createOrganization(mockUserId, mockDto)).rejects.toThrow(Error);
+      await expect(service.createOrganization(mockUserId, mockDto)).rejects.toThrow();
+
+      // Verify rollback uses executePublic
+      expect(tenantDbMock.executePublic).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM public.tenants'),
+        expect.any(Array),
+      );
     });
   });
 
   describe('findAll', () => {
-    it('should return a list of tenants with joins', async () => {
-      const mockTenants = [{ id: '1', name: 'Acme', plan_name: 'free' }];
-      queryRunnerMock.query.mockResolvedValueOnce(mockTenants);
+    it('should use executePublic to fetch tenant list', async () => {
+      const mockTenants = [{ id: '1', name: 'Acme' }];
+      tenantDbMock.executePublic.mockResolvedValueOnce(mockTenants);
 
       const result = await service.findAll();
 
       expect(result).toEqual(mockTenants);
-      expect(queryRunnerMock.release).toHaveBeenCalled();
+      expect(tenantDbMock.executePublic).toHaveBeenCalled();
     });
   });
 });

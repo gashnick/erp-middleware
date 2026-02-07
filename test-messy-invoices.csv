@@ -1,0 +1,8 @@
+customer_name,amount,currency,status,invoice_number
+Acme Corp,1500.50,USD,pending,INV-001
+,2000,USD,paid,INV-002
+Beta Inc,invalid_amount,USD,pending,INV-003
+Gamma LLC,3500.99,EUR,invalid_status,INV-004
+Delta Co,-500,USD,pending,INV-005
+Epsilon Ltd,5000,GBP,paid,
+Zeta Corp,999.99,USD,pending,INV-007

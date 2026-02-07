@@ -1,6 +1,6 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { TenantsController } from './tenants.controller';
+import { TenantsController, TenantsAliasController } from './tenants.controller';
 import { Tenant } from './entities/tenant.entity';
 import { DatabaseModule } from '@database/database.module';
 import { TenantProvisioningService } from './tenant-provisioning.service';
@@ -26,7 +26,7 @@ import { AuthModule } from '@auth/auth.module';
     EncryptionModule,
     forwardRef(() => AuthModule),
   ],
-  controllers: [TenantsController],
+  controllers: [TenantsController, TenantsAliasController],
   providers: [TenantProvisioningService],
   exports: [TenantProvisioningService], // Export for use in other modules (like Auth)
 })

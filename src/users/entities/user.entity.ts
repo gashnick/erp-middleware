@@ -24,7 +24,7 @@ export class User {
   id: string;
 
   // Make relation nullable for the initial signup phase
-  @ManyToOne(() => Tenant, { onDelete: 'CASCADE', nullable: true })
+  @ManyToOne(() => Tenant, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'tenant_id' })
   tenant: Tenant;
 

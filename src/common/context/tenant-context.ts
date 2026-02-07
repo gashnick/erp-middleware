@@ -118,10 +118,28 @@ export function setTenantContextForJob(
 
   // Return cleanup function
   return () => {
-    if (previousContext) {
+    // Restore previous context exactly. If `previousContext` is defined,
+    // re-enter it. If it's `undefined` (no previous context), attempt to
+    // restore previous context if present
+    if (previousContext !== undefined) {
       tenantContext.enterWith(previousContext);
-    } else {
-      tenantContext.disable();
+      return;
+    }
+
+    // If there was no previous context, clear the store. Tests use
+    // `tenantContext.exit(() => {})` to clear AsyncLocalStorage; use the
+    // same operation which is supported and reliably clears the store.
+    try {
+      tenantContext.exit(() => {});
+    } catch {
+      // Fallback: if exit isn't available or fails, try enterWith(undefined)
+      // for Node versions that support it. If that also fails, there's not
+      // much we can do — leave the store as-is (best-effort).
+      try {
+        (tenantContext as any).enterWith(undefined);
+      } catch {
+        // no-op
+      }
     }
   };
 }

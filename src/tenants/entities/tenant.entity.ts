@@ -5,8 +5,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToOne,
+  ManyToOne,
+  JoinColumn,
+  Index,
 } from 'typeorm';
 import { Subscription } from '../../subscription/entities/subscription.entity';
+import { User } from '@users/entities/user.entity';
 
 @Entity({ schema: 'public', name: 'tenants' })
 export class Tenant {
@@ -24,6 +28,12 @@ export class Tenant {
 
   @Column({ default: 'active' })
   status: string;
+
+  // Improved Tenant Entity
+  @ManyToOne(() => User) // Assuming you import User entity
+  @JoinColumn({ name: 'owner_id' })
+  @Index()
+  owner: User;
 
   @Column({ name: 'owner_id', type: 'uuid', nullable: true })
   ownerId: string;

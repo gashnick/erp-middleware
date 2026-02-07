@@ -11,8 +11,8 @@ export default new DataSource({
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_DATABASE || 'erp_middleware',
 
-  // IMPORTANT: Point to master migrations folder
-  migrations: ['src/database/migrations/master/*.ts'],
+  // IMPORTANT: Point to system migrations folder
+  migrations: ['src/database/migrations/system/*.ts'],
   migrationsTableName: 'migrations',
 
   entities: ['src/**/*.entity.ts'],

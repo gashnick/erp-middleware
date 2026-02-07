@@ -1,55 +1,75 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from './config/config.service';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AuditLoggingInterceptor } from '@common/interceptors/audit-logging.interceptor';
 import { AllExceptionsFilter } from '@common/filters/all-exceptions.filter';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
+
+  // 1. Create Application
   const app = await NestFactory.create(AppModule);
 
-  // Get config service
+  // 2. Load Configuration
   const config = app.get(ConfigService);
 
-  // Enable CORS
+  // 3. Security & CORS
   if (config.corsEnabled) {
     app.enableCors({
       origin: config.corsOrigin,
       credentials: config.corsCredentials,
     });
   }
-  // Logging Intreceptor can be added here if needed
+
+  // 4. Global API Prefix (Standard Practice)
+  app.setGlobalPrefix('api');
+
+  // 5. Global Interceptors
+  // AuditLoggingInterceptor will now benefit from the TenantContext set in the middleware
   app.useGlobalInterceptors(new AuditLoggingInterceptor());
 
+  // 6. Global Filters
+  // Note: If AllExceptionsFilter needs dependencies from the Nest container,
+  // you might prefer app.useGlobalFilters(app.get(AllExceptionsFilter));
   app.useGlobalFilters(new AllExceptionsFilter());
-  // Global validation pipe
+
+  // 7. Global Validation Pipe
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, // Strip unknown properties
-      forbidNonWhitelisted: true, // Throw error on unkown properties
-      transform: true, // Transform payloads to DTO Types
+      whitelist: true, // Strip properties not in DTO
+      forbidNonWhitelisted: true, // Fail if extra properties are sent
+      transform: true, // Auto-transform JSON to DTO classes
+      transformOptions: {
+        enableImplicitConversion: true, // Helps with query params (strings to numbers)
+      },
     }),
   );
 
-  // Setup Swagger
+  // 8. Swagger Documentation Setup
   const swaggerConfig = new DocumentBuilder()
     .setTitle('ERP Middleware API')
-    .setDescription('AI-Powered ERP Middleware')
+    .setDescription('AI-Powered Multi-tenant ERP Infrastructure')
     .setVersion('1.0')
     .addBearerAuth()
-    .addTag('Auth', 'Authentication endpoints')
-    .addTag('Tentants', 'Tenant management endpoints')
-    .addTag('Users', 'User management endpoints')
-    .addTag('Finance', 'Finance management endpoints')
+    .addTag('Auth')
+    .addTag('Tenants')
+    .addTag('Users')
+    .addTag('Finance')
     .build();
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api', app, document);
 
-  // Start server
-  await app.listen(config.port);
-  console.log(` Application running on: http://localhost:${config.port}`);
-  console.log(` Swagger docs: http://localhost:${config.port}/api`);
-  console.log('Multi-tenant mode: ENABLED (schema per tenant)');
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('docs', app, document);
+
+  // 9. Start Server
+  const port = config.port || 3000;
+  await app.listen(port);
+
+  // 10. Startup Logs
+  logger.log(`🚀 Application running on: http://localhost:${port}/api`);
+  logger.log(`📚 Swagger docs: http://localhost:${port}/docs`);
+  logger.log(`🏗️  Multi-tenant mode: ENABLED (Schema Isolation & RLS)`);
 }
+
 bootstrap();

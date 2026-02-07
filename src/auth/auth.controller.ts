@@ -1,3 +1,4 @@
+// src/auth/auth.controller.ts
 import {
   Controller,
   Post,
@@ -24,38 +25,29 @@ export class AuthController {
     private readonly usersService: UsersService,
   ) {}
 
-  /** ===================
-   * Public Registration
-   * =================== */
   @Post('register')
   @ApiOperation({ summary: 'Initial user signup (Public)' })
-  @ApiResponse({ status: 201, description: 'User created without tenant.' })
+  @ApiResponse({ status: 201, description: 'User created without tenant context.' })
   async register(@Body() createUserDto: CreateUserDto) {
     return this.usersService.createPublicUser(createUserDto);
   }
 
-  /** ===================
-   * System Login
-   * =================== */
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Authenticate user and return JWT' })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns access_token and refresh_token.',
-  })
+  @ApiOperation({ summary: 'Login to system' })
   async login(@Body() loginDto: LoginDto) {
     const user = await this.authService.validateUser(loginDto.email, loginDto.password);
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+    if (!user) throw new UnauthorizedException('Invalid credentials');
+
+    // 🛡️ Logic: If user already belongs to a tenant, jump straight to tenant session.
+    // Otherwise, issue a public-scoped token for organization setup.
+    if (user.tenant_id) {
+      return this.authService.generateTenantSession(user.id);
     }
 
     return this.authService.login(user);
   }
 
-  /** ===================
-   * Refresh Session
-   * =================== */
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
@@ -63,24 +55,19 @@ export class AuthController {
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token is required');
     }
-
+    // Note: The service should differentiate between JWT-based (tenant)
+    // and DB-based (public) refresh tokens.
     return this.authService.refresh(refreshToken);
   }
 
-  /** ===================
-   * Tenant Promotion
-   * =================== */
   @Post('promote')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Promote a system-level user to tenant-level session' })
+  @ApiOperation({ summary: 'Elevate session to tenant scope after provisioning' })
   async promote(@Request() req: ExpressRequest) {
     const user = req.user as any;
-    if (!user?.id) {
-      throw new UnauthorizedException('Invalid user session');
-    }
-
+    // generateTenantSession verifies that the user record now contains a tenant_id
     return this.authService.generateTenantSession(user.id);
   }
 }

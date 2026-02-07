@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, OnModuleInit } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { AppController } from './app.controller';
+import { DashboardController } from './dashboard/dashboard.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from '@database/database.module';
@@ -19,6 +20,7 @@ import { EncryptionModule } from '@common/security/encryption.module';
 import { APP_FILTER } from '@nestjs/core';
 import { AllExceptionsFilter } from '@common/filters/all-exceptions.filter';
 import { MetricsModule } from '@common/metrics/metrics.module';
+import { SubscriptionPlanModule } from './subscription-plans/subscriptionPlan.module';
 
 @Module({
   imports: [
@@ -39,8 +41,9 @@ import { MetricsModule } from '@common/metrics/metrics.module';
     EncryptionModule,
     ConnectorsModule,
     MetricsModule,
+    SubscriptionPlanModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, DashboardController],
   providers: [
     AppService,
     {

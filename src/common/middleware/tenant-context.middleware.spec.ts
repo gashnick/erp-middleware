@@ -10,6 +10,7 @@ describe('TenantContextMiddleware', () => {
   let jwtService: jest.Mocked<JwtService>;
   let encryptionService: any;
   let configService: any;
+  let tenantDb: any;
 
   const mockResponse = {} as Response;
   const mockNext = jest.fn();
@@ -19,12 +20,14 @@ describe('TenantContextMiddleware', () => {
     jwtService = { decode: jest.fn(), verifyAsync: jest.fn() } as any;
     encryptionService = { decrypt: jest.fn().mockReturnValue('decrypted') };
     configService = { get: jest.fn().mockReturnValue('master-key') };
+    tenantDb = { executePublic: jest.fn().mockResolvedValue([]) };
 
     middleware = new TenantContextMiddleware(
       tenantsService,
       jwtService,
       encryptionService,
       configService,
+      tenantDb,
     );
 
     jest.clearAllMocks();

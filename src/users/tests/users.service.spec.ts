@@ -1,3 +1,4 @@
+// src/users/users.service.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersService } from '../users.service';
 import { TenantQueryRunnerService } from '../../database/tenant-query-runner.service';
@@ -12,13 +13,10 @@ describe('UsersService (Multi-tenant)', () => {
   const mockTenantId = '11111111-2222-3333-4444-555555555555';
 
   beforeEach(async () => {
-    // 1. Mock Database
     mockDb = {
-      execute: jest.fn(),
+      executePublic: jest.fn(),
     };
 
-    // 2. Mock Context (Simulate Middleware)
-    // Use the public helper to set the tenant context for this test
     cleanup = setTenantContextForJob(
       mockTenantId,
       'test-user',
@@ -35,32 +33,54 @@ describe('UsersService (Multi-tenant)', () => {
 
   afterEach(() => {
     if (cleanup) cleanup();
+    jest.restoreAllMocks();
   });
 
   describe('create', () => {
-    it('should create a user scoped to the current tenant', async () => {
-      // Arrange
-      const dto = { email: 'test@erp.com', password: 'password123', role: 'STAFF' };
-      (mockDb.execute as jest.Mock).mockResolvedValue([{ id: 'user-123' }]);
+    it('should create a user in the public schema scoped to the tenant', async () => {
+      const dto = {
+        email: 'test@erp.com',
+        password: 'password123',
+        role: 'STAFF',
+        fullName: 'Test User',
+      };
+      (mockDb.executePublic as jest.Mock).mockResolvedValue([{ id: 'user-123' }]);
 
-      // Act
       await service.create(mockTenantId, dto as any);
 
-      // Assert: Verify tenant_id was injected automatically
-      expect(mockDb.execute).toHaveBeenCalledWith(
+      expect(mockDb.executePublic).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO public.users'),
-        expect.arrayContaining([mockTenantId, dto.email]), // Ensure tenantId is arg $1
+        expect.arrayContaining([mockTenantId, dto.email]),
       );
     });
 
-    it('should throw ConflictException if email exists in tenant', async () => {
-      // Arrange
+    it('should throw ConflictException if unique constraint (23505) is violated', async () => {
       const dto = { email: 'duplicate@erp.com', password: 'password123', role: 'STAFF' };
-      const pgError = { code: '23505' }; // Unique violation
-      (mockDb.execute as jest.Mock).mockRejectedValue(pgError);
+      const pgError = new Error('Unique violation');
+      (pgError as any).code = '23505';
 
-      // Act & Assert
+      (mockDb.executePublic as jest.Mock).mockRejectedValue(pgError);
+
       await expect(service.create(mockTenantId, dto as any)).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('findByEmail', () => {
+    it('should query the public users table with tenant isolation', async () => {
+      (mockDb.executePublic as jest.Mock).mockResolvedValue([
+        { id: 'user-123', email: 'test@erp.com' },
+      ]);
+
+      await service.findByEmail('test@erp.com', mockTenantId);
+
+      expect(mockDb.executePublic).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT u.id, u.email'),
+        ['test@erp.com', mockTenantId],
+      );
+      expect(mockDb.executePublic).toHaveBeenCalledWith(
+        expect.stringContaining('AND u.tenant_id = $2'),
+        expect.anything(),
+      );
     });
   });
 });

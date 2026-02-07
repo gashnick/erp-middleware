@@ -20,7 +20,7 @@ import { EtlTransformerService } from './services/etl-transformer.service';
     TenantsModule,
     EventEmitterModule.forRoot(),
   ],
-  controllers: [QuarantineController],
+  controllers: [QuarantineController, require('./etl.controller').EtlController],
   providers: [
     EtlService,
     ConnectorHealthService,
