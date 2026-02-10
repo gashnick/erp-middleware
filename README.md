@@ -780,9 +780,13 @@ npm run test:cov
 
 ## 📖 Additional Documentation
 
-- [Month 1 Status Report](./MONTH1_STATUS_REPORT.md)
-- [ETL Validation Tests](./ETL_VALIDATION_TEST_RESULTS.md)
-- [60-Second Dashboard Test](./test-60-second-requirement.md)
+- [Month 1 Status Report](./docs/MONTH1_STATUS_REPORT.md)
+- [ETL Validation Tests](./docs/ETL_VALIDATION_TEST_RESULTS.md)
+- [60-Second Dashboard Test](./docs/test-60-second-requirement.md)
+- [Month 1 Final Report](./docs/MONTH1-FINAL-REPORT.md)
+- [CSV Upload Testing](./docs/CSV-UPLOAD-TESTING.md)
+- [OAuth2 Setup Guide](./docs/OAUTH2-SETUP.md)
+- [CI/CD Setup Guide](./docs/CI-CD-SETUP.md)
 - [API Documentation](http://localhost:3000/api) (Swagger)
 
 ---

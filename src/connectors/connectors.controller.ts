@@ -15,6 +15,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { RolesGuard } from '@auth/guards/roles.guard';
 import { Role } from '@auth/enums/role.enum';
@@ -22,6 +23,8 @@ import { Roles } from '@auth/decorators/roles.decorator';
 import { EtlService } from '../etl/services/etl.service';
 import { getTenantContext } from '@common/context/tenant-context';
 
+@ApiTags('Connectors')
+@ApiBearerAuth()
 @Controller('connectors')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ConnectorsController {
@@ -94,6 +97,25 @@ export class ConnectorsController {
   @Post('csv-upload')
   @Roles(Role.ADMIN, Role.MANAGER)
   @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ 
+    summary: 'Upload CSV file for invoice processing',
+    description: 'Upload a CSV file with invoice data. Expected columns: customer_name, amount, external_id, status, currency'
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'CSV file (max 10MB, max 10,000 rows)'
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 200, description: 'CSV processed successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid file or format' })
   async uploadCsv(@UploadedFile() file: any) {
     const ctx = getTenantContext();
 
