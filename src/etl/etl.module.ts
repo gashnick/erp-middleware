@@ -6,8 +6,6 @@ import { AuditModule } from '@common/audit/audit.module';
 import { EncryptionModule } from '@common/security/encryption.module';
 import { TenantsModule } from '@tenants/tenants.module';
 import { ConnectorHealthService } from '@connectors/connector-health.service';
-import { PostgresProvider } from '@connectors/providers/postgres-provider';
-import { QuickbooksProvider } from '@connectors/providers/quickbooks-provider';
 import { QuarantineService } from './services/quarantine.service';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { EtlTransformerService } from './services/etl-transformer.service';
@@ -24,8 +22,6 @@ import { EtlTransformerService } from './services/etl-transformer.service';
   providers: [
     EtlService,
     ConnectorHealthService,
-    PostgresProvider,
-    QuickbooksProvider,
     QuarantineService,
     EtlTransformerService,
   ],

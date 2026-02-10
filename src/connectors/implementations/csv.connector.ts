@@ -1,28 +1,42 @@
+import { Injectable } from '@nestjs/common';
+import { BaseConnector } from '../base/base-connector';
+import {
+  ConnectorType,
+  ConnectorConfig,
+  ConnectionTestResult,
+  FetchOptions,
+  ConnectorData,
+} from '../interfaces/connector.interface';
+import { EtlService } from '../../etl/services/etl.service';
 import { parse } from 'csv-parse/sync';
-import { BaseConnector } from '../base.connector';
-import { ConnectorResult } from '../interfaces/connector.interface';
 
+@Injectable()
 export class CsvConnector extends BaseConnector {
-  async validateConfig(config: { fileType: string }): Promise<boolean> {
-    return config.fileType === 'text/csv';
+  constructor(etlService: EtlService) {
+    super(ConnectorType.CSV_UPLOAD, 'CSV File Upload', etlService);
   }
 
-  async fetchData(fileBuffer: Buffer): Promise<ConnectorResult> {
+  async testConnection(config: ConnectorConfig): Promise<ConnectionTestResult> {
+    return {
+      success: true,
+      message: 'CSV connector ready',
+    };
+  }
+
+  async fetchData(config: ConnectorConfig, options?: FetchOptions): Promise<ConnectorData[]> {
+    return [];
+  }
+
+  async parseCSV(buffer: Buffer): Promise<Record<string, any>[]> {
     try {
-      const records = parse(fileBuffer, {
-        columns: true, // Uses the first row as keys
+      const records = parse(buffer, {
+        columns: true,
         skip_empty_lines: true,
         trim: true,
-      });
-
-      return {
-        success: true,
-        data: records,
-        rawCount: records.length,
-        validCount: 0, // Will be calculated by ETL Processor
-      };
+      }) as Record<string, any>[];
+      return records;
     } catch (error) {
-      return { success: false, error: error.message, rawCount: 0, validCount: 0 };
+      throw new Error(`CSV parsing failed: ${error.message}`);
     }
   }
 }

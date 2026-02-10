@@ -22,6 +22,8 @@ import { Role } from '@auth/enums/role.enum';
 import { Roles } from '@auth/decorators/roles.decorator';
 import { EtlService } from '../etl/services/etl.service';
 import { getTenantContext } from '@common/context/tenant-context';
+import { ConnectorFactory } from './services/connector-factory.service';
+import { ConnectorType } from './interfaces/connector.interface';
 
 @ApiTags('Connectors')
 @ApiBearerAuth()
@@ -35,7 +37,10 @@ export class ConnectorsController {
   private readonly MIN_CSV_ROWS = 1;
   private readonly MAX_CSV_ROWS = 10000;
 
-  constructor(private readonly etlService: EtlService) {}
+  constructor(
+    private readonly etlService: EtlService,
+    private readonly connectorFactory: ConnectorFactory,
+  ) {}
 
   /**
    * Create a new connector configuration for this tenant.
@@ -89,6 +94,48 @@ export class ConnectorsController {
         },
       ],
     };
+  }
+
+  /**
+   * List available connector types
+   */
+  @Get('types')
+  @Roles(Role.ADMIN, Role.ANALYST)
+  async getAvailableTypes() {
+    const types = this.connectorFactory.getAvailableTypes();
+    const connectors = this.connectorFactory.getAll();
+    
+    return {
+      types,
+      connectors: connectors.map(c => ({
+        type: c.type,
+        name: c.name,
+      })),
+    };
+  }
+
+  /**
+   * Test connector connection
+   */
+  @Post('test-connection')
+  @Roles(Role.ADMIN)
+  async testConnection(@Body() body: { type: string; credentials: any; settings?: any }) {
+    const ctx = getTenantContext();
+    if (!ctx?.tenantId) {
+      throw new BadRequestException('Tenant identification missing.');
+    }
+    
+    const connector = this.connectorFactory.get(body.type as ConnectorType);
+    const config = {
+      id: 'test',
+      tenantId: ctx.tenantId,
+      type: body.type as ConnectorType,
+      credentials: body.credentials || {},
+      settings: body.settings || {},
+      isActive: true,
+    };
+    
+    return await connector.testConnection(config);
   }
 
   /**

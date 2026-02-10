@@ -9,8 +9,6 @@ import { TenantQueryRunnerService } from '@database/tenant-query-runner.service'
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TenantProvisioningService } from '@tenants/tenant-provisioning.service';
 import { ConnectorHealthService } from '@connectors/connector-health.service';
-import { PostgresProvider } from '@connectors/providers/postgres-provider';
-import { QuickbooksProvider } from '@connectors/providers/quickbooks-provider';
 import { runWithTenantContext } from '@common/context/tenant-context';
 import { EtlTransformerService } from './etl-transformer.service';
 import { QuarantineService } from './quarantine.service';
@@ -19,7 +17,7 @@ import { BatchRetryResult } from '../interfaces/etl.interfaces';
 @Injectable()
 export class EtlService {
   private readonly logger = new Logger(EtlService.name);
-  private readonly connectorRegistry: Record<string, any>;
+  private readonly connectorRegistry: Record<string, any> = {};
 
   private readonly MAX_RETRY_ATTEMPTS = 3;
   private readonly INITIAL_RETRY_DELAY_MS = 50;
@@ -32,14 +30,7 @@ export class EtlService {
     private readonly connectorHealth: ConnectorHealthService,
     private readonly transformer: EtlTransformerService,
     private readonly quarantine: QuarantineService,
-    private readonly pgProvider: PostgresProvider,
-    private readonly qbProvider: QuickbooksProvider,
-  ) {
-    this.connectorRegistry = {
-      postgres: this.pgProvider,
-      quickbooks: this.qbProvider,
-    };
-  }
+  ) {}
 
   /**
    * 🚀 External Sync Entry Point

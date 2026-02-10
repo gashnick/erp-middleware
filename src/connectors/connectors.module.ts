@@ -2,14 +2,13 @@ import { Module } from '@nestjs/common';
 import { ConnectorsController } from './connectors.controller';
 import { EtlModule } from '../etl/etl.module';
 import { ConnectorHealthService } from './connector-health.service';
-import { PostgresProvider } from './providers/postgres-provider';
-import { QuickbooksProvider } from './providers/quickbooks-provider';
 import { DatabaseModule } from '@database/database.module';
+import { ConnectorFactory } from './services/connector-factory.service';
 
 @Module({
-  imports: [EtlModule, DatabaseModule], // Make sure EtlModule is here to provide EtlService
+  imports: [EtlModule, DatabaseModule],
   controllers: [ConnectorsController],
-  providers: [ConnectorHealthService, PostgresProvider, QuickbooksProvider],
-  exports: [ConnectorHealthService],
+  providers: [ConnectorHealthService, ConnectorFactory],
+  exports: [ConnectorHealthService, ConnectorFactory],
 })
 export class ConnectorsModule {}
