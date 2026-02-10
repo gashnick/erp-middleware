@@ -1,8 +1,9 @@
 // src/auth/auth.service.ts
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { TenantProvisioningService } from '@tenants/tenant-provisioning.service';
+import { TenantQueryRunnerService } from '@database/tenant-query-runner.service';
 import { EncryptionService } from '@common/security/encryption.service';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
@@ -17,6 +18,7 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly tenantsService: TenantProvisioningService,
+    private readonly tenantDb: TenantQueryRunnerService,
     private readonly encryptionService: EncryptionService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
@@ -67,6 +69,52 @@ export class AuthService {
       access_token: accessToken,
       user: { id: user.id, email: user.email, tenantId: null, role: user.role },
     };
+  }
+
+  /**
+   * OAuth2 Login/Registration
+   * Handles user authentication via OAuth providers (Google, GitHub)
+   */
+  async oauthLogin(oauthUser: any) {
+    const { email, provider, providerId, fullName, picture } = oauthUser;
+
+    // Check if user exists
+    let user = await this.usersService.findByEmail(email);
+
+    if (!user) {
+      // Create new user from OAuth profile with temporary password
+      user = await this.usersService.create(null, {
+        email,
+        fullName,
+        role: 'ADMIN' as any,
+        password: 'oauth-no-password-' + Math.random().toString(36),
+      });
+      
+      // Update OAuth fields and clear password hash directly
+      await this.tenantDb.executePublic(
+        `UPDATE public.users 
+         SET oauth_provider = $1, oauth_provider_id = $2, profile_picture = $3, password_hash = NULL 
+         WHERE id = $4`,
+        [provider, providerId, picture, user.id]
+      );
+      
+      // Refresh user data
+      user = await this.usersService.findById(user.id);
+    } else if (!user['oauth_provider']) {
+      // Link OAuth to existing email/password account
+      await this.tenantDb.executePublic(
+        `UPDATE public.users 
+         SET oauth_provider = $1, oauth_provider_id = $2, profile_picture = $3 
+         WHERE id = $4`,
+        [provider, providerId, picture, user.id]
+      );
+      
+      // Refresh user data
+      user = await this.usersService.findById(user.id);
+    }
+
+    // Generate session token
+    return this.login(user);
   }
 
   /**

@@ -8,11 +8,14 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { GoogleStrategy } from './strategies/google.strategy';
+import { GithubStrategy } from './strategies/github.strategy';
 import { RefreshToken } from './entities/refresh-token.entity';
 
 // Import the modules providing the required services
 import { TenantsModule } from '@tenants/tenants.module';
 import { EncryptionModule } from '@common/security/encryption.module';
+import { DatabaseModule } from '@database/database.module';
 
 @Module({
   imports: [
@@ -20,6 +23,7 @@ import { EncryptionModule } from '@common/security/encryption.module';
     EncryptionModule, // Needed for EncryptionService
     forwardRef(() => TenantsModule), // Needed for TenantProvisioningService
     forwardRef(() => UsersModule),
+    DatabaseModule, // Needed for TenantQueryRunnerService
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({
       // This remains the "Global Secret" for System Mode
@@ -28,7 +32,7 @@ import { EncryptionModule } from '@common/security/encryption.module';
     }),
     TypeOrmModule.forFeature([RefreshToken]),
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, GoogleStrategy, GithubStrategy],
   controllers: [AuthController],
   exports: [AuthService, JwtModule],
 })

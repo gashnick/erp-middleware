@@ -35,11 +35,21 @@ export class User {
   @Column({ length: 255 })
   email: string;
 
-  @Column({ name: 'password_hash', length: 255 })
+  @Column({ name: 'password_hash', length: 255, nullable: true })
   passwordHash: string;
 
   @Column({ name: 'full_name', length: 255 })
   fullName: string;
+
+  // OAuth fields
+  @Column({ name: 'oauth_provider', length: 50, nullable: true })
+  oauthProvider: string;
+
+  @Column({ name: 'oauth_provider_id', length: 255, nullable: true })
+  oauthProviderId: string;
+
+  @Column({ name: 'profile_picture', length: 500, nullable: true })
+  profilePicture: string;
 
   // Change to use the UserRole Enum for consistency with DTO/Swagger
   @Column({

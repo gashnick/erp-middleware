@@ -175,7 +175,16 @@ export class TenantContextMiddleware implements NestMiddleware {
   }
 
   private isPublicRoute(path: string): boolean {
-    const publicPatterns = ['/auth/register', '/auth/login', '/auth/refresh', '/provisioning/organizations', '/health', '/subscription-plans'];
+    const publicPatterns = [
+      '/auth/register', 
+      '/auth/login', 
+      '/auth/refresh', 
+      '/auth/google',
+      '/auth/github',
+      '/provisioning/organizations', 
+      '/health', 
+      '/subscription-plans'
+    ];
     return publicPatterns.some((pattern) => path.includes(pattern));
   }
 

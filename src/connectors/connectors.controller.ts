@@ -94,7 +94,7 @@ export class ConnectorsController {
   @Post('csv-upload')
   @Roles(Role.ADMIN, Role.MANAGER)
   @UseInterceptors(FileInterceptor('file'))
-  async uploadCsv(@UploadedFile() file: Express.Multer.File) {
+  async uploadCsv(@UploadedFile() file: any) {
     const ctx = getTenantContext();
 
     if (!ctx?.tenantId) {

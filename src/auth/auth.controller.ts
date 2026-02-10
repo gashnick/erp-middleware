@@ -8,14 +8,18 @@ import {
   Request,
   UseGuards,
   UnauthorizedException,
+  Get,
+  Res,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { GoogleOAuthGuard, GithubOAuthGuard } from './guards/oauth.guard';
 import { LoginDto } from './dto/login.dto';
-import { Request as ExpressRequest } from 'express';
+import { Request as ExpressRequest, Response } from 'express';
 
 @ApiTags('Identity & Access')
 @Controller('auth')
@@ -69,5 +73,50 @@ export class AuthController {
     const user = req.user as any;
     // generateTenantSession verifies that the user record now contains a tenant_id
     return this.authService.generateTenantSession(user.id);
+  }
+
+  // OAuth2 Routes
+  @Get('google')
+  @UseGuards(GoogleOAuthGuard)
+  @ApiOperation({ summary: 'Initiate Google OAuth2 login' })
+  async googleAuth() {
+    // Guard redirects to Google
+  }
+
+  @Get('google/callback')
+  @UseGuards(GoogleOAuthGuard)
+  @ApiOperation({ summary: 'Google OAuth2 callback' })
+  async googleAuthCallback(@Req() req: ExpressRequest, @Res() res: Response) {
+    const result = await this.authService.oauthLogin(req.user);
+    
+    // Return JSON response instead of redirect (no frontend)
+    return res.json({
+      success: true,
+      message: 'Google authentication successful',
+      access_token: result.access_token,
+      user: result.user,
+    });
+  }
+
+  @Get('github')
+  @UseGuards(GithubOAuthGuard)
+  @ApiOperation({ summary: 'Initiate GitHub OAuth2 login' })
+  async githubAuth() {
+    // Guard redirects to GitHub
+  }
+
+  @Get('github/callback')
+  @UseGuards(GithubOAuthGuard)
+  @ApiOperation({ summary: 'GitHub OAuth2 callback' })
+  async githubAuthCallback(@Req() req: ExpressRequest, @Res() res: Response) {
+    const result = await this.authService.oauthLogin(req.user);
+    
+    // Return JSON response instead of redirect (no frontend)
+    return res.json({
+      success: true,
+      message: 'GitHub authentication successful',
+      access_token: result.access_token,
+      user: result.user,
+    });
   }
 }
