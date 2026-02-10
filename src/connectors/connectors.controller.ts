@@ -186,8 +186,8 @@ export class ConnectorsController {
       // Calls manual ETL logic with 'csv_upload' source
       return await this.etlService.runInvoiceEtl(ctx.tenantId, rows, 'csv_upload');
     } catch (err) {
-      this.logger.error(`CSV ETL failed: ${err.message}`);
-      throw new InternalServerErrorException('Failed to process CSV data.');
+      this.logger.error(`CSV ETL failed: ${err.message}`, err.stack);
+      throw new InternalServerErrorException(`Failed to process CSV data: ${err.message}`);
     }
   }
 

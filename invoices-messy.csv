@@ -1,0 +1,6 @@
+customer_name,amount,external_id,status,currency
+Valid Corp,1500,VALID-CSV-001,pending,USD
+,2000,MISSING-NAME,paid,USD
+Bad Amount,not_a_number,INVALID-AMT,pending,USD
+Negative Corp,-500,NEGATIVE-AMT,pending,USD
+Zero Amount,0,ZERO-AMT,paid,USD

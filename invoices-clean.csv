@@ -1,0 +1,4 @@
+customer_name,amount,external_id,status,currency
+Acme Corp,5000,INV-001,pending,USD
+Beta Inc,3500,INV-002,paid,USD
+Gamma LLC,7500,INV-003,pending,USD
