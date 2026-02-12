@@ -65,9 +65,10 @@ export class InvoicesService {
   }
 
   async findAll(tenantId: string) {
-    // 🛡️ The TenantQueryRunner handles search_path; RLS handles tenant_id isolation.
+    // 🛡️ Defense-in-depth: Schema isolation + explicit tenant_id filter
     const rows = await this.tenantDb.executeTenant(
-      'SELECT * FROM invoices ORDER BY created_at DESC',
+      'SELECT * FROM invoices WHERE tenant_id = $1 ORDER BY created_at DESC',
+      [tenantId],
     );
 
     if (!rows || rows.length === 0) return [];
@@ -77,9 +78,10 @@ export class InvoicesService {
   }
 
   async findOne(id: string, tenantId: string) {
-    const rows = await this.tenantDb.executeTenant('SELECT * FROM invoices WHERE id = $1 LIMIT 1', [
-      id,
-    ]);
+    const rows = await this.tenantDb.executeTenant(
+      'SELECT * FROM invoices WHERE id = $1 AND tenant_id = $2 LIMIT 1',
+      [id, tenantId],
+    );
 
     if (!rows || rows.length === 0) {
       throw new NotFoundException(`Invoice with ID ${id} not found`);
@@ -94,9 +96,9 @@ export class InvoicesService {
       `UPDATE invoices 
        SET amount = COALESCE($1, amount), 
            status = COALESCE($2, status)
-       WHERE id = $3
+       WHERE id = $3 AND tenant_id = $4
        RETURNING *`,
-      [dto.amount, dto.status, id],
+      [dto.amount, dto.status, id, tenantId],
     );
 
     if (!result || result.length === 0) {

@@ -1,0 +1,688 @@
+{
+  "info": {
+    "name": "ERP Middleware API",
+    "description": "Complete API collection for ERP Middleware testing",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "publicToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tenantToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "jobId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "quarantineId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    console.log('User registered:', response.email);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"fullName\": \"Admin User\",\n  \"role\": \"ADMIN\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login (Public Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('publicToken', response.access_token);",
+                  "    console.log('Public token saved');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('tenantToken', response.access_token);",
+                  "    pm.collectionVariables.set('refreshToken', response.refresh_token);",
+                  "    console.log('Tokens refreshed');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            }
+          }
+        },
+        {
+          "name": "Google OAuth - Get Auth URL",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/google",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "google"]
+            }
+          }
+        },
+        {
+          "name": "Google OAuth - Callback",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('publicToken', response.access_token);",
+                  "    console.log('Google login successful, token saved');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/google/callback?code=<authorization_code>",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "google", "callback"],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "<authorization_code>"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Subscription Plans",
+      "item": [
+        {
+          "name": "Get Subscription Plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/subscription-plans",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscription-plans"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Tenant Provisioning",
+      "item": [
+        {
+          "name": "Create Organization & Tenant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('tenantToken', response.auth.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', response.auth.refreshToken);",
+                  "    console.log('Tenant created, tokens saved');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{publicToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyName\": \"Acme Corporation\",\n  \"dataSourceType\": \"external\",\n  \"subscriptionPlan\": \"enterprise\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/provisioning/organizations",
+              "host": ["{{baseUrl}}"],
+              "path": ["provisioning", "organizations"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Invoices",
+      "item": [
+        {
+          "name": "Create Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"Client Corp\",\n  \"amount\": 5000.00,\n  \"currency\": \"USD\",\n  \"status\": \"pending\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/invoices",
+              "host": ["{{baseUrl}}"],
+              "path": ["invoices"]
+            }
+          }
+        },
+        {
+          "name": "Create Paid Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"Beta Inc\",\n  \"amount\": 3500.00,\n  \"currency\": \"USD\",\n  \"status\": \"paid\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/invoices",
+              "host": ["{{baseUrl}}"],
+              "path": ["invoices"]
+            }
+          }
+        },
+        {
+          "name": "List All Invoices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/invoices",
+              "host": ["{{baseUrl}}"],
+              "path": ["invoices"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Finance Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/finance/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["finance", "dashboard"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. ETL Pipeline",
+      "item": [
+        {
+          "name": "Upload CSV File",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('jobId', response.jobId);",
+                  "    console.log('CSV uploaded, Job ID:', response.jobId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "entityType",
+                  "value": "invoice",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/etl/upload-csv",
+              "host": ["{{baseUrl}}"],
+              "path": ["etl", "upload-csv"]
+            }
+          }
+        },
+        {
+          "name": "Ingest Valid Data",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('jobId', response.jobId);",
+                  "    console.log('Job ID saved:', response.jobId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"csv_upload\",\n  \"entityType\": \"invoice\",\n  \"records\": [\n    {\n      \"customer_name\": \"Speed Test Corp\",\n      \"amount\": 10000,\n      \"external_id\": \"SPEED-001\",\n      \"status\": \"paid\"\n    },\n    {\n      \"customer_name\": \"Fast Co\",\n      \"amount\": 20000,\n      \"external_id\": \"SPEED-002\",\n      \"status\": \"pending\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/etl/ingest",
+              "host": ["{{baseUrl}}"],
+              "path": ["etl", "ingest"]
+            }
+          }
+        },
+        {
+          "name": "Ingest Invalid Data (Quarantine Test)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"csv_upload\",\n  \"entityType\": \"invoice\",\n  \"records\": [\n    {\n      \"customer_name\": \"Valid Corp\",\n      \"amount\": 1500.50,\n      \"external_id\": \"VALID-001\",\n      \"status\": \"pending\"\n    },\n    {\n      \"customer_name\": \"\",\n      \"amount\": 2000,\n      \"status\": \"paid\"\n    },\n    {\n      \"customer_name\": \"Invalid Amount\",\n      \"amount\": \"not_a_number\",\n      \"external_id\": \"INVALID-002\",\n      \"status\": \"pending\"\n    },\n    {\n      \"customer_name\": \"Negative Amount\",\n      \"amount\": -500,\n      \"external_id\": \"INVALID-003\",\n      \"status\": \"pending\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/etl/ingest",
+              "host": ["{{baseUrl}}"],
+              "path": ["etl", "ingest"]
+            }
+          }
+        },
+        {
+          "name": "Get Job Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/etl/jobs/{{jobId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["etl", "jobs", "{{jobId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Connectors",
+      "item": [
+        {
+          "name": "QuickBooks - Get Auth URL",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/connectors/quickbooks/auth",
+              "host": ["{{baseUrl}}"],
+              "path": ["connectors", "quickbooks", "auth"]
+            }
+          }
+        },
+        {
+          "name": "QuickBooks - OAuth Callback",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/connectors/quickbooks/callback?code=<auth_code>&realmId=<realm_id>",
+              "host": ["{{baseUrl}}"],
+              "path": ["connectors", "quickbooks", "callback"],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "<auth_code>"
+                },
+                {
+                  "key": "realmId",
+                  "value": "<realm_id>"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "QuickBooks - Sync Invoices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/connectors/quickbooks/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["connectors", "quickbooks", "sync"]
+            }
+          }
+        },
+        {
+          "name": "Odoo - Connect",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://your-odoo-instance.com\",\n  \"database\": \"your_database\",\n  \"username\": \"admin\",\n  \"apiKey\": \"your_api_key\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/connectors/odoo/connect",
+              "host": ["{{baseUrl}}"],
+              "path": ["connectors", "odoo", "connect"]
+            }
+          }
+        },
+        {
+          "name": "Odoo - Sync Invoices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/connectors/odoo/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["connectors", "odoo", "sync"]
+            }
+          }
+        },
+        {
+          "name": "Get Connector Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/connectors/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["connectors", "status"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Quarantine Management",
+      "item": [
+        {
+          "name": "Get Quarantine Records",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.length > 0) {",
+                  "        pm.collectionVariables.set('quarantineId', response.data[0].id);",
+                  "        console.log('Quarantine ID saved:', response.data[0].id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/quarantine",
+              "host": ["{{baseUrl}}"],
+              "path": ["quarantine"]
+            }
+          }
+        },
+        {
+          "name": "Get Quarantine Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/quarantine/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["quarantine", "status"]
+            }
+          }
+        },
+        {
+          "name": "Retry Quarantined Record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fixedData\": {\n    \"customer_name\": \"Fixed Customer\",\n    \"amount\": 2000,\n    \"external_id\": \"FIXED-001\",\n    \"status\": \"paid\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/quarantine/{{quarantineId}}/retry",
+              "host": ["{{baseUrl}}"],
+              "path": ["quarantine", "{{quarantineId}}", "retry"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
