@@ -181,6 +181,8 @@ export class TenantContextMiddleware implements NestMiddleware {
       '/auth/refresh', 
       '/auth/google',
       '/auth/github',
+      '/tenants',
+      '/tenants/organizations',
       '/provisioning/organizations', 
       '/health', 
       '/subscription-plans'

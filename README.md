@@ -196,7 +196,7 @@ curl -X GET http://localhost:3000/api/subscription-plans
 **Create organization and tenant:**
 
 ```bash
-curl -X POST http://localhost:3000/api/provisioning/organizations \
+curl -X POST http://localhost:3000/api/tenants \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $PUBLIC_TOKEN" \
   -d '{
@@ -210,9 +210,11 @@ curl -X POST http://localhost:3000/api/provisioning/organizations \
 ```json
 {
   "success": true,
-  "message": "Infrastructure provisioned and session upgraded successfully",
+  "message": "Tenant created successfully",
+  "tenantId": "67ae7320-f353-4788-b9b5-65a66daac48d",
+  "schemaName": "tenant_acme_corporation_2391d553_4621",
   "organization": {
-    "id": "tenant-uuid",
+    "id": "67ae7320-f353-4788-b9b5-65a66daac48d",
     "name": "Acme Corporation",
     "slug": "acme_corporation"
   },
@@ -641,7 +643,7 @@ echo "✅ Login successful"
 
 # 3. Create Tenant
 echo "\n3️⃣ Creating tenant..."
-TENANT_RESPONSE=$(curl -s -X POST $BASE_URL/provisioning/organizations \
+TENANT_RESPONSE=$(curl -s -X POST $BASE_URL/tenants \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $PUBLIC_TOKEN" \
   -d '{

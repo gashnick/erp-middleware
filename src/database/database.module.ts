@@ -18,20 +18,17 @@ const ormOptions = {
   migrations: [],
   migrationsRun: false,
 
-  // FIX: Use __dirname and pattern that works for both TS and JS
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-  // OR if you want to be explicit about all entity files:
-  // entities: [
-  //   'dist/**/*.entity.js',  // Compiled files (production & watch mode)
-  //   'src/**/*.entity.ts',   // Source files (for TypeORM CLI)
-  // ],
 
   synchronize: false,
-  logging: process.env.DB_LOGGING === 'true',
+  logging: false, // Disable to reduce noise
   extra: {
     max: 20,
-    connectionTimeoutMillis: 5000,
+    connectionTimeoutMillis: 2000,
   },
+  connectTimeoutMS: 2000,
+  retryAttempts: 1,
+  retryDelay: 1000,
 } as any;
 
 @Module({

@@ -1,7 +1,19 @@
+import { DataSource } from 'typeorm';
+import { MetricsService } from '../common/metrics/metrics.service';
+import { RLSContextService } from '../database/rls-context.service';
+const mockMetricsService = {};
+const mockRLSContextService = {};
+import { EncryptionService } from '../common/security/encryption.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConnectorsController } from './connectors.controller';
 import { EtlService } from '../etl/services/etl.service';
 import { ConnectorHealthService } from './connector-health.service';
+import { ConnectorFactory } from './services/connector-factory.service';
+import { EtlTransformerService } from '../etl/services/etl-transformer.service';
+import { QuarantineService } from '../etl/services/quarantine.service';
+import { TenantQueryRunnerService } from '@database/tenant-query-runner.service';
+import { TenantProvisioningService } from '@tenants/tenant-provisioning.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as TenantContext from '@common/context/tenant-context';
 
 describe('ConnectorsController', () => {
@@ -15,21 +27,31 @@ describe('ConnectorsController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ConnectorsController],
       providers: [
+        EtlService,
+        ConnectorHealthService,
+        ConnectorFactory,
+        EtlTransformerService,
+        QuarantineService,
         {
-          provide: EtlService,
-          useValue: {
-            runExternalSync: jest.fn().mockResolvedValue({ total: 5, synced: 5, quarantined: 0 }),
-            runInvoiceEtl: jest.fn().mockResolvedValue({ total: 10, synced: 8, quarantined: 2 }),
-            getTenantSecret: jest.fn().mockResolvedValue('mock-secret'),
-          },
+          provide: DataSource,
+          useValue: {},
         },
         {
-          provide: ConnectorHealthService,
-          useValue: {
-            handleSyncSuccess: jest.fn().mockResolvedValue(undefined),
-            handleSyncFailure: jest.fn().mockResolvedValue(undefined),
-          },
+          provide: MetricsService,
+          useValue: mockMetricsService,
         },
+        {
+          provide: RLSContextService,
+          useValue: mockRLSContextService,
+        },
+        TenantQueryRunnerService,
+        {
+          provide: TenantMigrationRunnerService,
+          useValue: {},
+        },
+        TenantProvisioningService,
+        EventEmitter2,
+        EncryptionService,
       ],
     }).compile();
 

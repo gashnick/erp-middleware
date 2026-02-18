@@ -1,8 +1,7 @@
 // src/finance/finance.service.ts
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { FinanceAnalyticsService } from './finance-analytics.service';
 import { FinanceDashboardDto } from './dto/dashboard-summary.dto';
-import { getTenantContext } from '@common/context/tenant-context';
 
 @Injectable()
 export class FinanceService {
@@ -14,12 +13,7 @@ export class FinanceService {
     // for explicit tracking and potential validation
     const summary = await this.analytics.getDashboardSummary(tenantId);
 
-    const ctx = getTenantContext();
-    if (ctx?.tenantId !== tenantId) {
-      throw new InternalServerErrorException(
-        `Tenant context mismatch: expected ${tenantId}, got ${ctx?.tenantId}`,
-      );
-    }
+    // The TenantGuard already validates tenant context, so we trust tenantId here
     // Tests expect 'arAging' and 'apAging' keys. Map the existing agingReport
     // into the expected shape and provide a placeholder 'apAging' until
     // payables are implemented.

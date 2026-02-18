@@ -18,7 +18,7 @@ describe('Tenant Provisioning (Public/System)', () => {
     await resetDatabase();
   });
 
-  describe('POST /provisioning/organizations', () => {
+  describe('POST /tenants', () => {
     it('should provision a new tenant with schema isolation', async () => {
       // Register and login user
       const userData = userFactory.validRegistration();
@@ -33,27 +33,21 @@ describe('Tenant Provisioning (Public/System)', () => {
       // Create organization
       const orgData = organizationFactory.validOrganization();
       const response = await authenticatedRequest(app, token)
-        .post('/provisioning/organizations')
+        .post('/tenants')
         .send(orgData)
         .expect(201);
 
-      // Your API returns a different structure
+      // API returns simplified structure after refactoring
       expect(response.body).toMatchObject({
-        success: true,
-        message: expect.any(String),
-        organization: {
-          id: expect.any(String),
-          name: orgData.companyName,
-          slug: expect.any(String),
-        },
-        auth: {
-          accessToken: expect.any(String),
-          refreshToken: expect.any(String),
-        },
+        id: expect.any(String),
+        name: orgData.companyName,
+        slug: expect.any(String),
+        accessToken: expect.any(String),
+        refreshToken: expect.any(String),
       });
 
       // Extract schema name from JWT or response
-      const tenantId = response.body.organization.id;
+      const tenantId = response.body.id;
 
       // Verify schema was created (might be async)
       const runner = await db.getRunner();
@@ -82,9 +76,7 @@ describe('Tenant Provisioning (Public/System)', () => {
       const token = loginResponse.body.access_token;
       const orgData = organizationFactory.validOrganization();
 
-      const response = await authenticatedRequest(app, token)
-        .post('/provisioning/organizations')
-        .send(orgData);
+      const response = await authenticatedRequest(app, token).post('/tenants').send(orgData);
 
       //console.log('Provisioning response:', JSON.stringify(response.body, null, 2));
 
@@ -116,9 +108,7 @@ describe('Tenant Provisioning (Public/System)', () => {
       const token = loginResponse.body.access_token;
       const orgData = organizationFactory.validOrganization();
 
-      const response = await authenticatedRequest(app, token)
-        .post('/provisioning/organizations')
-        .send(orgData);
+      const response = await authenticatedRequest(app, token).post('/tenants').send(orgData);
 
       //console.log(
       //  'Provisioning response for subscription test:',

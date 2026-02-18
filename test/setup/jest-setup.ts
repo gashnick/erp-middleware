@@ -1,7 +1,7 @@
 import { setupTestApp } from './test-app.bootstrap';
 
 // Extend Jest timeout for all tests
-jest.setTimeout(60000);
+(global as any).jest?.setTimeout?.(60000);
 console.log('[E2E] Jest setup initialized');
 
 // Suppress Console Ninja logs in test environment
@@ -27,12 +27,12 @@ if (process.env.NODE_ENV === 'test') {
   };
 }
 // Global test app initialization
-beforeAll(async () => {
+(global as any).beforeAll?.(async () => {
   await setupTestApp();
 });
 
 // Add custom matchers if needed
-expect.extend({
+(global as any).expect?.extend?.({
   toBeValidUUID(received: string) {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     const pass = uuidRegex.test(received);

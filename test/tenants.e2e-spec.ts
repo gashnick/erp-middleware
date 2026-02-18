@@ -68,7 +68,7 @@ describe('Tenant Provisioning - Resilience (e2e)', () => {
     });
   };
 
-  describe('POST /provisioning/organizations', () => {
+  describe('POST /tenants', () => {
     let migrationSpy: jest.SpyInstance;
 
     beforeEach(async () => {
@@ -88,7 +88,7 @@ describe('Tenant Provisioning - Resilience (e2e)', () => {
       };
 
       const response = await request(app!.getHttpServer())
-        .post('/provisioning/organizations')
+        .post('/tenants')
         .set('Authorization', `Bearer ${systemToken}`)
         .send(dto)
         .expect(201);
@@ -112,7 +112,7 @@ describe('Tenant Provisioning - Resilience (e2e)', () => {
 
       // Act
       const response = await request(app!.getHttpServer())
-        .post('/provisioning/organizations')
+        .post('/tenants')
         .set('Authorization', `Bearer ${systemToken}`)
         .send(dto)
         .expect(500);
@@ -136,7 +136,7 @@ describe('Tenant Provisioning - Resilience (e2e)', () => {
 
       // Act
       await request(app!.getHttpServer())
-        .post('/provisioning/organizations')
+        .post('/tenants')
         .set('Authorization', `Bearer ${systemToken}`)
         .send(dto)
         .expect(500);

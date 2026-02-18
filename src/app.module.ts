@@ -21,6 +21,8 @@ import { APP_FILTER } from '@nestjs/core';
 import { AllExceptionsFilter } from '@common/filters/all-exceptions.filter';
 import { MetricsModule } from '@common/metrics/metrics.module';
 import { SubscriptionPlanModule } from './subscription-plans/subscriptionPlan.module';
+import { AIModule } from './ai/ai.module';
+import { GraphQLModule } from './graphql/graphql.module';
 
 @Module({
   imports: [
@@ -42,6 +44,8 @@ import { SubscriptionPlanModule } from './subscription-plans/subscriptionPlan.mo
     ConnectorsModule,
     MetricsModule,
     SubscriptionPlanModule,
+    GraphQLModule,
+    // AIModule, // Temporarily disabled
   ],
   controllers: [AppController, DashboardController],
   providers: [
@@ -60,11 +64,20 @@ export class AppModule implements OnModuleInit {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(TenantContextMiddleware)
-      .exclude('/health', '/health/database', '*path/swagger', '/api') // Exclude auth and health routes
-      .forRoutes('*'); // Apply to all other routes
+      .exclude(
+        '/health',
+        '/health/database',
+        '*path/swagger',
+        '/api',
+        'auth/(.*)',
+        'tenants',
+        'tenants/(.*)',
+      )
+      .forRoutes('*');
   }
 
   async onModuleInit() {
+    console.log('🔍 Checking RUN_MIGRATIONS_ON_STARTUP...');
     // Run tenant migrations on startup (if needed)
     if (process.env.RUN_MIGRATIONS_ON_STARTUP === 'true') {
       console.log('🔄 Running tenant migrations on startup...');
@@ -73,6 +86,8 @@ export class AppModule implements OnModuleInit {
       if (result.failed > 0) {
         console.error(`⚠️  ${result.failed} schemas failed to migrate`);
       }
+    } else {
+      console.log('✅ Skipping migrations (RUN_MIGRATIONS_ON_STARTUP not set)');
     }
   }
 }

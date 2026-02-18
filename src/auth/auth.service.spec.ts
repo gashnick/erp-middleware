@@ -1,12 +1,18 @@
+import { EncryptionService } from '../common/security/encryption.service';
+import { MetricsService } from '../common/metrics/metrics.service';
+import { RLSContextService } from '../database/rls-context.service';
+import { DataSource } from 'typeorm';
+const mockMetricsService = {};
+const mockRLSContextService = {};
 // src/auth/auth.service.spec.ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
-import { TenantProvisioningService } from '@tenants/tenant-provisioning.service';
-import { EncryptionService } from '@common/security/encryption.service';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { TenantProvisioningService } from '../tenants/tenant-provisioning.service';
+import { TenantQueryRunnerService } from '../database/tenant-query-runner.service';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { UnauthorizedException } from '@nestjs/common';
 import * as bcryptjs from 'bcryptjs';
@@ -47,6 +53,19 @@ describe('AuthService', () => {
           provide: getRepositoryToken(RefreshToken),
           useValue: { save: jest.fn(), findOne: jest.fn() },
         },
+        {
+          provide: DataSource,
+          useValue: {},
+        },
+        {
+          provide: MetricsService,
+          useValue: mockMetricsService,
+        },
+        {
+          provide: RLSContextService,
+          useValue: mockRLSContextService,
+        },
+        TenantQueryRunnerService,
       ],
     }).compile();
 

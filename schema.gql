@@ -1,0 +1,53 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+input CreateInvoiceInput {
+  amount: Float!
+  currency: String! = "USD"
+  customerName: String!
+  externalId: String
+  status: InvoiceStatus! = DRAFT
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type Invoice {
+  amount: Float!
+  createdAt: DateTime!
+  currency: String!
+  customerName: String!
+  externalId: String
+  id: ID!
+  status: InvoiceStatus!
+  updatedAt: DateTime!
+}
+
+enum InvoiceStatus {
+  CANCELLED
+  DRAFT
+  OVERDUE
+  PAID
+  PENDING
+}
+
+type Mutation {
+  createInvoice(input: CreateInvoiceInput!): Invoice!
+  updateInvoice(id: ID!, input: UpdateInvoiceInput!): Invoice!
+}
+
+type Query {
+  invoice(id: ID!): Invoice
+  invoices(limit: Int, offset: Int): [Invoice!]!
+}
+
+input UpdateInvoiceInput {
+  amount: Float
+  currency: String
+  customerName: String
+  externalId: String
+  status: InvoiceStatus
+}

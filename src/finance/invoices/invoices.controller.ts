@@ -12,11 +12,12 @@ import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { TenantGuard } from '@common/guards/tenant.guard';
+import { TenantRateLimitGuard } from '@common/guards/tenant-rate-limit.guard';
 import { ActiveTenant } from '@common/decorators/active-tenant.decorator';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 
 @Controller('invoices')
-@UseGuards(JwtAuthGuard, TenantGuard) // 🛡️ TenantGuard ensures tenantId exists before reaching here
+@UseGuards(JwtAuthGuard, TenantGuard, TenantRateLimitGuard) // 🛡️ TenantGuard ensures tenantId exists before reaching here
 export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 

@@ -6,15 +6,16 @@ import { INestApplication } from '@nestjs/common';
  * Returns an object with methods that automatically include the Auth header
  */
 export const authenticatedRequest = (app: INestApplication, token: string) => {
-  const req = request(app.getHttpServer());
   const authHeader = `Bearer ${token}`;
 
   return {
-    get: (url: string) => req.get(url).set('Authorization', authHeader),
-    post: (url: string) => req.post(url).set('Authorization', authHeader),
-    put: (url: string) => req.put(url).set('Authorization', authHeader),
-    patch: (url: string) => req.patch(url).set('Authorization', authHeader),
-    delete: (url: string) => req.delete(url).set('Authorization', authHeader),
+    get: (url: string) => request(app.getHttpServer()).get(url).set('Authorization', authHeader),
+    post: (url: string) => request(app.getHttpServer()).post(url).set('Authorization', authHeader),
+    put: (url: string) => request(app.getHttpServer()).put(url).set('Authorization', authHeader),
+    patch: (url: string) =>
+      request(app.getHttpServer()).patch(url).set('Authorization', authHeader),
+    delete: (url: string) =>
+      request(app.getHttpServer()).delete(url).set('Authorization', authHeader),
   };
 };
 

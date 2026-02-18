@@ -9,8 +9,10 @@ import { AllExceptionsFilter } from '@common/filters/all-exceptions.filter';
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
+  logger.log('🔧 Creating NestJS application...');
   // 1. Create Application
   const app = await NestFactory.create(AppModule);
+  logger.log('✅ Application created successfully');
 
   // 2. Load Configuration
   const config = app.get(ConfigService);
@@ -72,4 +74,7 @@ async function bootstrap() {
   logger.log(`🏗️  Multi-tenant mode: ENABLED (Schema Isolation & RLS)`);
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  console.error('❌ Failed to start application:', error);
+  process.exit(1);
+});

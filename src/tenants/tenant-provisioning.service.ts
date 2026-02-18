@@ -5,6 +5,8 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { TenantQueryRunnerService } from '@database/tenant-query-runner.service';
 import { TenantMigrationRunnerService } from '@database/tenant-migration-runner.service';
 import { v4 as uuidv4 } from 'uuid';
@@ -22,6 +24,7 @@ export class TenantProvisioningService {
     private readonly migrationRunner: TenantMigrationRunnerService,
     private readonly encryptionService: EncryptionService,
     private readonly configService: ConfigService,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   async createOrganization(userId: string, dto: CreateTenantDto) {
@@ -52,8 +55,11 @@ export class TenantProvisioningService {
 
     try {
       // PHASE 1: Database Records (Forcing 'public' schema for metadata)
-      await this.tenantDb.transaction(
-        async (runner) => {
+      const runner = this.dataSource.createQueryRunner();
+      await runner.connect();
+      await runner.startTransaction();
+
+      try {
           // 1. Validate Plan
           const plans = await runner.query(
             `SELECT id, slug FROM public.subscription_plans WHERE slug = $1 LIMIT 1`,
@@ -80,19 +86,7 @@ export class TenantProvisioningService {
             [uuidv4(), tenantId, planId, 'trial', now, trialEnd, trialEnd],
           );
 
-          // Debug: log the plan mapping we used for the subscription insert
-          try {
-            // eslint-disable-next-line no-console
-            console.log('[TENANT_PROVISION] Subscription insert for tenant:', {
-              tenantId,
-              planSlug: subscriptionPlan,
-              planId,
-            });
-          } catch (e) {
-            // ignore
-          }
-
-          // 4. Provision Physical Schema (Must be done via runner to stay in transaction)
+          // 4. Provision Physical Schema
           await runner.query(`CREATE SCHEMA "${schemaName}"`);
 
           // 5. Link User to Tenant
@@ -114,9 +108,14 @@ export class TenantProvisioningService {
               JSON.stringify({ schemaName, plan: subscriptionPlan }),
             ],
           );
-        },
-        { schema: 'public' },
-      ); // 🔒 Force transaction into public schema context
+
+          await runner.commitTransaction();
+        } catch (err) {
+          await runner.rollbackTransaction();
+          throw err;
+        } finally {
+          await runner.release();
+        }
 
       // PHASE 2: Infrastructure Setup (Migration logic)
       const migrationResult = await this.migrationRunner.runMigrations(schemaName);
@@ -130,13 +129,13 @@ export class TenantProvisioningService {
       this.logger.error(`❌ Provisioning failed for ${schemaName}. Rolling back...`);
 
       try {
-        // Clean up using executePublic to bypass context restrictions
-        await this.tenantDb.executePublic(
+        // Clean up using direct dataSource
+        await this.dataSource.query(
           `UPDATE public.users SET tenant_id = NULL, role = $1 WHERE id = $2`,
           [UserRole.STAFF, userId],
         );
-        await this.tenantDb.executePublic(`DELETE FROM public.tenants WHERE id = $1`, [tenantId]);
-        await this.tenantDb.executePublic(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
+        await this.dataSource.query(`DELETE FROM public.tenants WHERE id = $1`, [tenantId]);
+        await this.dataSource.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
       } catch (rbError) {
         this.logger.error(`🚨 FATAL: Rollback failed: ${rbError.message}`);
       }
@@ -147,12 +146,11 @@ export class TenantProvisioningService {
   }
 
   async findById(tenantId: string) {
-    // Test tenant support for E2E
     if (tenantId === '00000000-0000-0000-0000-000000000000') {
       return this.getMockTenant(tenantId);
     }
 
-    const result = await this.tenantDb.executePublic(
+    const result = await this.dataSource.query(
       `SELECT id, name, schema_name, status, tenant_secret FROM public.tenants WHERE id = $1`,
       [tenantId],
     );
@@ -160,7 +158,7 @@ export class TenantProvisioningService {
   }
 
   async findAll() {
-    return this.tenantDb.executePublic(`
+    return this.dataSource.query(`
       SELECT 
         t.id, t.name, t.slug, t.schema_name, 
         t.status as tenant_status,
@@ -182,7 +180,7 @@ export class TenantProvisioningService {
   }
 
   async listAllTenantSchemas(): Promise<{ schemaName: string }[]> {
-    return this.tenantDb.executePublic(`
+    return this.dataSource.query(`
       SELECT schema_name as "schemaName" 
       FROM information_schema.schemata 
       WHERE schema_name LIKE 'tenant_%'

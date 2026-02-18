@@ -1,5 +1,6 @@
 customer_name,amount,external_id,status,currency
-Acme Corporation,5000.00,INV-001,pending,USD
+Acme Corp,5000.00,INV-001,pending,USD
 Beta Industries,3500.50,INV-002,paid,USD
 Gamma LLC,7200.00,INV-003,pending,USD
-Delta Corp,1500.00,INV-004,paid,USD
+Delta Solutions,4800.75,INV-004,paid,USD
+Epsilon Tech,6100.00,INV-005,pending,USD

@@ -1,0 +1,8 @@
+customer_name,amount,external_id,status,currency
+Valid Company,1500.00,INV-100,pending,USD
+,2000.00,INV-101,paid,USD
+Bad Amount Corp,not_a_number,INV-102,pending,USD
+Negative Inc,-500.00,INV-103,pending,USD
+Missing ID Corp,3000.00,,paid,USD
+,,,pending,USD
+Good Company 2,2500.50,INV-104,paid,USD

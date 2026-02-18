@@ -42,7 +42,7 @@ describe('Tenant Users (e2e)', () => {
       // Create organization (provision tenant)
       const org = organizationFactory.validOrganization();
       const provisioning = await authenticatedRequest(app, token)
-        .post('/provisioning/organizations')
+        .post('/tenants')
         .send(org)
         .expect(201);
 
@@ -79,7 +79,7 @@ describe('Tenant Users (e2e)', () => {
       // Create organization
       const org = organizationFactory.validOrganization();
       const provisioning = await authenticatedRequest(app, publicToken)
-        .post('/provisioning/organizations')
+        .post('/tenants')
         .send(org)
         .expect(201);
 

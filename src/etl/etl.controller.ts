@@ -30,7 +30,7 @@ export class EtlController {
   ) {}
 
   @Post('ingest')
-  @HttpCode(HttpStatus.ACCEPTED)
+  @HttpCode(HttpStatus.CREATED)
   async ingest(@Body() body: { source: string; entityType: string; records: any[] }) {
     const ctx = getTenantContext();
     if (!ctx?.tenantId) throw new BadRequestException('Tenant context required');

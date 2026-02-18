@@ -15,7 +15,10 @@ export class CreateInvoiceDto {
   @IsNotEmpty()
   customer_name: string;
 
-  @ApiPropertyOptional({ example: 'INV-2026-0001', description: 'Optional invoice number from the system' })
+  @ApiPropertyOptional({
+    example: 'INV-2026-0001',
+    description: 'Optional invoice number from the system',
+  })
   @IsString()
   @IsOptional()
   invoice_number?: string;
@@ -25,7 +28,11 @@ export class CreateInvoiceDto {
   @IsNotEmpty()
   amount: number;
 
-  @ApiPropertyOptional({ example: InvoiceStatus.PENDING, description: 'Invoice lifecycle status', enum: InvoiceStatus })
+  @ApiPropertyOptional({
+    example: InvoiceStatus.PENDING,
+    description: 'Invoice lifecycle status',
+    enum: InvoiceStatus,
+  })
   @IsEnum(InvoiceStatus)
   @IsOptional()
   status?: InvoiceStatus;
@@ -34,7 +41,10 @@ export class CreateInvoiceDto {
    * 🛡️ PRIORITY 4: IDEMPOTENCY
    * Used to map records from external systems (CSV, QB, etc.)
    */
-  @ApiPropertyOptional({ example: 'QB-INV-1001', description: 'External system id used for idempotency' })
+  @ApiPropertyOptional({
+    example: 'QB-INV-1001',
+    description: 'External system id used for idempotency',
+  })
   @IsString()
   @IsOptional()
   external_id?: string;
@@ -44,7 +54,12 @@ export class CreateInvoiceDto {
   @IsOptional()
   currency?: string = 'USD';
 
-  @ApiPropertyOptional({ description: 'Arbitrary metadata for custom integrations', type: 'object', additionalProperties: true, example: { source: 'csv' } })
+  @ApiPropertyOptional({
+    description: 'Arbitrary metadata for custom integrations',
+    type: 'object',
+    additionalProperties: true,
+    example: { source: 'csv' },
+  })
   @IsObject()
   @IsOptional()
   metadata?: Record<string, any>;

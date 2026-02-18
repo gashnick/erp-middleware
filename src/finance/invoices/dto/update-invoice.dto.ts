@@ -9,12 +9,21 @@ export class UpdateInvoiceDto {
   @IsOptional()
   amount?: number;
 
-  @ApiPropertyOptional({ example: InvoiceStatus.PENDING, description: 'Updated invoice status', enum: InvoiceStatus })
+  @ApiPropertyOptional({
+    example: InvoiceStatus.PENDING,
+    description: 'Updated invoice status',
+    enum: InvoiceStatus,
+  })
   @IsEnum(InvoiceStatus)
   @IsOptional()
   status?: InvoiceStatus;
 
-  @ApiPropertyOptional({ description: 'Arbitrary metadata to attach to the invoice', type: 'object', additionalProperties: true, example: { department: 'sales' } })
+  @ApiPropertyOptional({
+    description: 'Arbitrary metadata to attach to the invoice',
+    type: 'object',
+    additionalProperties: true,
+    example: { department: 'sales' },
+  })
   @IsObject()
   @IsOptional()
   metadata?: Record<string, any>;

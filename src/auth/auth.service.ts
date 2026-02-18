@@ -1,4 +1,3 @@
-// src/auth/auth.service.ts
 import { Injectable, UnauthorizedException, Logger, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
@@ -7,9 +6,9 @@ import { TenantQueryRunnerService } from '@database/tenant-query-runner.service'
 import { EncryptionService } from '@common/security/encryption.service';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { RefreshToken } from './entities/refresh-token.entity';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 
 @Injectable()
 export class AuthService {
@@ -24,6 +23,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepo: Repository<RefreshToken>,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   /**
@@ -137,12 +137,17 @@ export class AuthService {
    * Generates tokens signed with the unique Tenant Secret.
    */
   async generateTenantSession(userId: string, tenantId?: string) {
-    const user = await this.usersService.findById(userId);
+    // Query user directly to avoid tenant context
+    const userRows = await this.dataSource.query(
+      `SELECT id, email, role, tenant_id FROM public.users WHERE id = $1`,
+      [userId]
+    );
+    const user = userRows[0];
+    
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
-    // Use provided tenantId or fall back to user's tenant_id
     const effectiveTenantId = tenantId || user.tenant_id;
     if (!effectiveTenantId) {
       throw new UnauthorizedException('User not linked to a tenant');
@@ -174,23 +179,10 @@ export class AuthService {
       expiresIn: '7d',
     });
 
-    // Temporary debug logs to trace token payloads during E2E
-    try {
-      const decodedAccess = this.jwtService.decode(access) as any;
-      const decodedRefresh = this.jwtService.decode(refresh) as any;
-      this.logger.debug(`Generated tenant access token payload: ${JSON.stringify(decodedAccess)}`);
-      this.logger.debug(
-        `Generated tenant refresh token payload: ${JSON.stringify(decodedRefresh)}`,
-      );
-    } catch (e) {
-      this.logger.warn(`Failed to decode generated tokens for debug: ${e.message}`);
-    }
-
     return {
       access_token: access,
       refresh_token: refresh,
       user: {
-        // Added user object
         id: user.id,
         email: user.email,
         tenantId: effectiveTenantId,

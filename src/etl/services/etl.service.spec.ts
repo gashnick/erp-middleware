@@ -6,8 +6,8 @@ import { TenantProvisioningService } from '@tenants/tenant-provisioning.service'
 import { ConnectorHealthService } from '@connectors/connector-health.service';
 import { EtlTransformerService } from './etl-transformer.service';
 import { QuarantineService } from './quarantine.service';
-import { PostgresProvider } from '@connectors/providers/postgres-provider';
-import { QuickbooksProvider } from '@connectors/providers/quickbooks-provider';
+import { PostgreSQLConnector } from '@connectors/implementations/postgresql.connector';
+import { QuickBooksConnector } from '@connectors/implementations/quickbooks.connector';
 
 describe('EtlService', () => {
   let service: EtlService;
@@ -58,13 +58,13 @@ describe('EtlService', () => {
           },
         },
         {
-          provide: PostgresProvider,
+          provide: PostgreSQLConnector,
           useValue: {
             fetchData: jest.fn(),
           },
         },
         {
-          provide: QuickbooksProvider,
+          provide: QuickBooksConnector,
           useValue: {
             fetchData: jest.fn(),
           },

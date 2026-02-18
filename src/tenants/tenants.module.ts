@@ -28,6 +28,6 @@ import { AuthModule } from '@auth/auth.module';
   ],
   controllers: [TenantsController, TenantsAliasController],
   providers: [TenantProvisioningService],
-  exports: [TenantProvisioningService], // Export for use in other modules (like Auth)
+  exports: [TenantProvisioningService, TypeOrmModule], // Export TypeOrmModule to provide TenantRepository
 })
 export class TenantsModule {}

@@ -1,7 +1,7 @@
 import { Injectable, Logger, Inject, Optional, InternalServerErrorException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, QueryRunner } from 'typeorm';
-import { getTenantContext, getRequestId } from '../common/context/tenant-context';
+import { getTenantContext, getRequestId, hasTenantContext } from '../common/context/tenant-context';
 import { QueryHelper } from '../common/database/query-helper';
 import { MetricsService } from '../common/metrics/metrics.service';
 import { RLSContextService } from './rls-context.service';
@@ -29,9 +29,11 @@ export class TenantQueryRunnerService {
     opts?: { schema?: string; skipSchemaCheck?: boolean },
   ): Promise<T> {
     const start = process.hrtime();
-    const requestId = getRequestId();
 
-    const schema = opts?.schema ?? this.resolveSchema();
+    // For public schema, request ID is optional
+    const schema = opts?.schema || (hasTenantContext() ? this.resolveSchema() : 'public');
+    const requestId = hasTenantContext() ? getRequestId() : 'public-operation';
+
     const isPublic = schema === 'public';
 
     if (!isPublic) {
@@ -53,7 +55,7 @@ export class TenantQueryRunnerService {
       // 🔒 LOCAL ONLY — cannot leak to pool
       await runner.query('SELECT set_config($1, $2, true)', ['search_path', searchPath]);
 
-      if (this.rls) {
+      if (this.rls && !isPublic) {
         await this.rls.setRLSContext(runner);
       }
 
@@ -83,6 +85,12 @@ export class TenantQueryRunnerService {
   // ===============================
 
   async executeTenant<T = any>(query: string, params?: any[]): Promise<T[]> {
+    return this.transaction(async (runner) => {
+      return runner.query(query, params);
+    });
+  }
+
+  async executeQuery<T = any>(tenantId: string, query: string, params?: any[]): Promise<T[]> {
     return this.transaction(async (runner) => {
       return runner.query(query, params);
     });

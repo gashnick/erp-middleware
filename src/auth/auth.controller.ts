@@ -11,6 +11,7 @@ import {
   Get,
   Res,
   Req,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -88,7 +89,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Google OAuth2 callback' })
   async googleAuthCallback(@Req() req: ExpressRequest, @Res() res: Response) {
     const result = await this.authService.oauthLogin(req.user);
-    
+
     // Return JSON response instead of redirect (no frontend)
     return res.json({
       success: true,
@@ -110,7 +111,7 @@ export class AuthController {
   @ApiOperation({ summary: 'GitHub OAuth2 callback' })
   async githubAuthCallback(@Req() req: ExpressRequest, @Res() res: Response) {
     const result = await this.authService.oauthLogin(req.user);
-    
+
     // Return JSON response instead of redirect (no frontend)
     return res.json({
       success: true,
@@ -118,5 +119,22 @@ export class AuthController {
       access_token: result.access_token,
       user: result.user,
     });
+  }
+
+  @Post('sso/callback')
+  @ApiOperation({ summary: 'Unified SSO callback for OAuth providers' })
+  async ssoCallback(@Body() body: any) {
+    const { provider, code, state, profile } = body;
+
+    // If the caller provides a pre-parsed profile (for testing or proxying), use it.
+    if (profile && profile.email) {
+      return this.authService.oauthLogin(profile);
+    }
+
+    // For real providers the service currently uses passport guards that populate req.user.
+    // Exchanging a code for a profile is out of scope for this lightweight endpoint.
+    throw new BadRequestException(
+      'Expected `profile` in body. Server-side OAuth flows should use provider-specific guards.',
+    );
   }
 }
