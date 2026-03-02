@@ -1,10 +1,10 @@
-import { Injectable, UnauthorizedException, Logger, Inject } from '@nestjs/common';
+// src/auth/auth.service.ts
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { TenantProvisioningService } from '@tenants/tenant-provisioning.service';
 import { TenantQueryRunnerService } from '@database/tenant-query-runner.service';
 import { EncryptionService } from '@common/security/encryption.service';
-import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { RefreshToken } from './entities/refresh-token.entity';
@@ -20,7 +20,6 @@ export class AuthService {
     private readonly tenantDb: TenantQueryRunnerService,
     private readonly encryptionService: EncryptionService,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepo: Repository<RefreshToken>,
     @InjectDataSource() private readonly dataSource: DataSource,
@@ -32,8 +31,6 @@ export class AuthService {
   async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.usersService.findByEmail(email);
 
-    // Defensive check for bcryptjs:
-    // It will throw if 'pass' or 'user.password_hash' are not strings.
     if (!user || typeof user.password_hash !== 'string') {
       return null;
     }
@@ -50,8 +47,6 @@ export class AuthService {
 
   /**
    * INITIAL LOGIN: System/Public level
-   * Used for users without a tenant or as the first step of authentication.
-   * Only generates access token - no refresh token for null tenant.
    */
   async login(user: any) {
     const payload = {
@@ -63,8 +58,7 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload);
-    
-    // Don't generate refresh token for null tenant - user needs to create/join tenant first
+
     return {
       access_token: accessToken,
       user: { id: user.id, email: user.email, tenantId: null, role: user.role },
@@ -73,93 +67,63 @@ export class AuthService {
 
   /**
    * OAuth2 Login/Registration
-   * Handles user authentication via OAuth providers (Google, GitHub)
    */
   async oauthLogin(oauthUser: any) {
     const { email, provider, providerId, fullName, picture } = oauthUser;
-
-    // Check if user exists
     let user = await this.usersService.findByEmail(email);
 
     if (!user) {
-      // Create new user from OAuth profile with temporary password
       user = await this.usersService.create(null, {
         email,
         fullName,
         role: 'ADMIN' as any,
         password: 'oauth-no-password-' + Math.random().toString(36),
       });
-      
-      // Update OAuth fields and clear password hash directly
+
       await this.tenantDb.executePublic(
-        `UPDATE public.users 
-         SET oauth_provider = $1, oauth_provider_id = $2, profile_picture = $3, password_hash = NULL 
-         WHERE id = $4`,
-        [provider, providerId, picture, user.id]
+        `UPDATE public.users SET oauth_provider = $1, oauth_provider_id = $2, profile_picture = $3, password_hash = NULL WHERE id = $4`,
+        [provider, providerId, picture, user.id],
       );
-      
-      // Refresh user data
       user = await this.usersService.findById(user.id);
     } else if (!user['oauth_provider']) {
-      // Link OAuth to existing email/password account
       await this.tenantDb.executePublic(
-        `UPDATE public.users 
-         SET oauth_provider = $1, oauth_provider_id = $2, profile_picture = $3 
-         WHERE id = $4`,
-        [provider, providerId, picture, user.id]
+        `UPDATE public.users SET oauth_provider = $1, oauth_provider_id = $2, profile_picture = $3 WHERE id = $4`,
+        [provider, providerId, picture, user.id],
       );
-      
-      // Refresh user data
       user = await this.usersService.findById(user.id);
     }
 
-    // Generate session token
     return this.login(user);
   }
 
-  /**
-   * UNIVERSAL REFRESH
-   * Only works for tenant JWTs since public sessions don't have refresh tokens
-   */
   async refresh(token: string) {
-    const isJwt = token.split('.').length === 3;
-
-    if (isJwt) {
+    if (token.split('.').length === 3) {
       return this.refreshTenantSession(token);
     }
-
-    // Public sessions don't have refresh tokens - user must re-login
     throw new UnauthorizedException('Public sessions require re-authentication');
   }
 
   /**
    * TENANT SESSION ELEVATION
-   * Generates tokens signed with the unique Tenant Secret.
+   * FIXED: Uses pre-decrypted tenant.tenant_secret from TenantProvisioningService
    */
   async generateTenantSession(userId: string, tenantId?: string) {
-    // Query user directly to avoid tenant context
     const userRows = await this.dataSource.query(
       `SELECT id, email, role, tenant_id FROM public.users WHERE id = $1`,
-      [userId]
+      [userId],
     );
     const user = userRows[0];
-    
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
+
+    if (!user) throw new UnauthorizedException('User not found');
 
     const effectiveTenantId = tenantId || user.tenant_id;
-    if (!effectiveTenantId) {
-      throw new UnauthorizedException('User not linked to a tenant');
-    }
+    if (!effectiveTenantId) throw new UnauthorizedException('User not linked to a tenant');
 
     const tenant = await this.tenantsService.findById(effectiveTenantId);
-    if (!tenant) {
-      throw new UnauthorizedException('Tenant not found');
-    }
+    if (!tenant) throw new UnauthorizedException('Tenant not found');
 
-    const masterKey = this.configService.get<string>('GLOBAL_MASTER_KEY')!;
-    const decryptedSecret = this.encryptionService.decrypt(tenant.tenant_secret, masterKey);
+    // Logic Fix: findById now returns the raw secret, no manual decryption needed here
+    const jwtSecret = tenant.tenant_secret;
 
     const payload = {
       sub: user.id,
@@ -169,19 +133,9 @@ export class AuthService {
       schemaName: tenant.schema_name,
     };
 
-    const access = this.jwtService.sign(payload, {
-      secret: decryptedSecret,
-      expiresIn: '1h',
-    });
-
-    const refresh = this.jwtService.sign(payload, {
-      secret: decryptedSecret,
-      expiresIn: '7d',
-    });
-
     return {
-      access_token: access,
-      refresh_token: refresh,
+      access_token: this.jwtService.sign(payload, { secret: jwtSecret, expiresIn: '1h' }),
+      refresh_token: this.jwtService.sign(payload, { secret: jwtSecret, expiresIn: '7d' }),
       user: {
         id: user.id,
         email: user.email,
@@ -201,8 +155,10 @@ export class AuthService {
       if (!decoded?.tenantId) throw new Error();
 
       const tenant = await this.tenantsService.findById(decoded.tenantId);
-      const masterKey = this.configService.get<string>('GLOBAL_MASTER_KEY')!;
-      const secret = this.encryptionService.decrypt(tenant.tenant_secret, masterKey);
+      if (!tenant) throw new Error('Tenant for session no longer exists');
+
+      // Uses pre-decrypted secret
+      const secret = tenant.tenant_secret;
 
       const payload = await this.jwtService.verifyAsync(refreshToken, { secret });
 
@@ -214,18 +170,12 @@ export class AuthService {
         schemaName: payload.schemaName,
       };
 
-      // Generate new refresh token
-      const newRefreshToken = this.jwtService.sign(newPayload, {
-        secret,
-        expiresIn: '7d',
-      });
-
       return {
         access_token: this.jwtService.sign(newPayload, { secret, expiresIn: '1h' }),
-        refresh_token: newRefreshToken, // Added refresh_token
+        refresh_token: this.jwtService.sign(newPayload, { secret, expiresIn: '7d' }),
       };
     } catch (e) {
-      this.logger.warn(`Tenant refresh attempt failed: ${e.message}`);
+      this.logger.warn(`Tenant refresh failed: ${e.message}`);
       throw new UnauthorizedException('Invalid tenant refresh token');
     }
   }

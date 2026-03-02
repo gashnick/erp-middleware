@@ -1,6 +1,37 @@
-customer_name,amount,external_id,status,currency
-Acme Corp,5000.00,INV-001,pending,USD
-Beta Industries,3500.50,INV-002,paid,USD
-Gamma LLC,7200.00,INV-003,pending,USD
-Delta Solutions,4800.75,INV-004,paid,USD
-Epsilon Tech,6100.00,INV-005,pending,USD
+external_id,customer_name,amount,currency,status,invoice_date,due_date
+INV-2025-001,Global Tech Partners,12500.00,USD,paid,2025-01-15,2025-02-15
+INV-2025-002,Metro Services Inc,8750.00,USD,paid,2025-01-22,2025-02-22
+INV-2025-003,Sunrise Consulting,4200.00,USD,paid,2025-02-01,2025-03-01
+INV-2025-004,Blue Ocean Retail,15000.00,USD,paid,2025-02-14,2025-03-14
+INV-2025-005,Meridian Healthcare,3300.00,USD,paid,2025-03-05,2025-04-05
+INV-2025-006,Global Tech Partners,9800.00,USD,paid,2025-03-18,2025-04-18
+INV-2025-007,Vertex Solutions,6400.00,USD,paid,2025-04-02,2025-05-02
+INV-2025-008,Cascade Industries,11200.00,USD,paid,2025-04-20,2025-05-20
+INV-2025-009,Nexus Trading Co,7600.00,USD,paid,2025-05-08,2025-06-08
+INV-2025-010,Sunrise Consulting,18500.00,USD,paid,2025-05-25,2025-06-25
+INV-2025-011,Blue Ocean Retail,5100.00,USD,paid,2025-06-10,2025-07-10
+INV-2025-012,Meridian Healthcare,13700.00,USD,paid,2025-06-28,2025-07-28
+INV-2025-013,Metro Services Inc,9200.00,USD,paid,2025-07-10,2025-08-10
+INV-2025-014,Global Tech Partners,14500.00,USD,paid,2025-07-22,2025-08-22
+INV-2025-015,Vertex Solutions,6800.00,USD,paid,2025-08-05,2025-09-05
+INV-2025-016,Cascade Industries,19700.00,USD,paid,2025-08-18,2025-09-18
+INV-2025-017,Nexus Trading Co,3400.00,USD,paid,2025-09-02,2025-10-02
+INV-2025-018,Sunrise Consulting,22100.00,USD,paid,2025-09-15,2025-10-15
+INV-2025-019,Blue Ocean Retail,8900.00,USD,paid,2025-10-01,2025-11-01
+INV-2025-020,Meridian Healthcare,16300.00,USD,paid,2025-10-20,2025-11-20
+INV-2025-021,Atlas Cloud Services,85000.00,USD,paid,2025-11-01,2025-12-01
+INV-2025-022,Global Tech Partners,11800.00,USD,paid,2025-11-15,2025-12-15
+INV-2025-023,Metro Services Inc,7300.00,USD,paid,2025-12-01,2026-01-01
+INV-2025-024,Vertex Solutions,9500.00,USD,paid,2025-12-18,2026-01-18
+INV-2025-025,Iron Gate Construction,22000.00,USD,overdue,2025-07-01,2025-08-01
+INV-2025-026,Coastal Freight Ltd,9500.00,USD,overdue,2025-07-15,2025-08-15
+INV-2025-027,Frontier Pharma,4800.00,USD,overdue,2025-08-01,2025-09-01
+INV-2025-028,Nordic Shipping AS,3400.00,USD,overdue,2026-01-01,2026-01-15
+INV-2026-001,Horizon Media Group,9200.00,USD,paid,2026-01-10,2026-02-10
+INV-2026-002,Solaris Energy Corp,14500.00,USD,paid,2026-01-22,2026-02-22
+INV-2026-003,Frontier Pharma,6800.00,USD,sent,2026-02-05,2026-03-05
+INV-2026-004,Nordic Shipping AS,19700.00,USD,sent,2026-02-18,2026-03-18
+INV-2026-005,Meridian Healthcare,16200.00,USD,sent,2026-02-01,2026-03-01
+INV-2026-006,Global Tech Partners,7300.00,USD,sent,2026-02-10,2026-03-10
+INV-DUP-001,Acme Supplies Ltd,12500.00,USD,sent,2026-02-15,2026-03-15
+INV-DUP-002,Acme Supplies Ltd,12500.00,USD,sent,2026-02-16,2026-03-16

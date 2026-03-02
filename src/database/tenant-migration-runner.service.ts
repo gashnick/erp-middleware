@@ -35,25 +35,28 @@ export class TenantMigrationRunnerService {
   }
 
   /**
-   * Primary migration logic for a single schema
+   * Primary migration logic for a single schema.
+   *
+   * FIX: search_path must be set BOTH:
+   *   (a) before ensureMigrationsTable — using set_config with false (session-level)
+   *       so it persists across the non-transactional DDL call
+   *   (b) inside every transaction — because set_config(true) is transaction-local
+   *       and resets when the transaction commits/rolls back
    */
   async runMigrations(schemaName: string, providedFiles?: string[]) {
     this.validateSchemaName(schemaName);
     const files = providedFiles || this.getMigrationFiles();
 
-    // We create a fresh runner for migrations to ensure total isolation
     const runner = this.dataSource.createQueryRunner();
     await runner.connect();
 
     const result = { executed: [] as string[], skipped: [] as string[], errors: [] as string[] };
 
     try {
-      // 🔒 SECURITY: Use local set_config to prevent leakage to the connection pool
-      // This matches the logic in your TenantQueryRunnerService
-      await runner.query('SELECT set_config($1, $2, true)', [
-        'search_path',
-        `"${schemaName}", public`,
-      ]);
+      // ── (a) Session-level search_path so ensureMigrationsTable resolves correctly ──
+      // Using false (not transaction-local) so it persists for the whole connection session.
+      await runner.query(`SET search_path TO "${schemaName}", public`);
+      this.logger.debug(`[${schemaName}] search_path set at session level`);
 
       await this.ensureMigrationsTable(runner, schemaName);
 
@@ -72,36 +75,34 @@ export class TenantMigrationRunnerService {
         await runner.startTransaction();
 
         try {
+          // ── (b) Re-set search_path inside the transaction ──────────────────
+          // set_config with true = transaction-local, so it applies for the
+          // duration of this transaction and resets cleanly on commit/rollback.
+          await runner.query(`SET LOCAL search_path TO "${schemaName}", public`);
+
           const fullPath = join(this.migrationDir, file);
           if (!existsSync(fullPath)) throw new Error(`Migration file missing: ${fullPath}`);
 
-          // Use require for better compatibility with TypeScript in development
           const migrationModule = require(fullPath);
-          
-          // Try multiple ways to get the migration class
+
           let MigrationClass = migrationModule.default;
-          
           if (!MigrationClass) {
-            // Try named exports
-            const exportKeys = Object.keys(migrationModule).filter(k => k !== 'default' && k !== '__esModule');
-            if (exportKeys.length > 0) {
-              MigrationClass = migrationModule[exportKeys[0]];
-            }
+            const exportKeys = Object.keys(migrationModule).filter(
+              (k) => k !== 'default' && k !== '__esModule',
+            );
+            if (exportKeys.length > 0) MigrationClass = migrationModule[exportKeys[0]];
           }
 
           if (!MigrationClass) {
-            const allKeys = Object.keys(migrationModule);
             throw new Error(
-              `No migration class found in ${file}. Available exports: ${allKeys.join(', ')}`,
+              `No migration class found in ${file}. Exports: ${Object.keys(migrationModule).join(', ')}`,
             );
           }
 
           const instance = new MigrationClass();
-
-          // Run the migration 'up' logic
           await instance.up(runner);
 
-          // Record migration success
+          // Record in the tenant-schema migrations table (search_path resolves this correctly)
           await runner.query(
             `INSERT INTO "${schemaName}".migrations (name, timestamp) VALUES ($1, $2)`,
             [migrationName, Date.now()],
@@ -109,8 +110,6 @@ export class TenantMigrationRunnerService {
 
           await runner.commitTransaction();
           result.executed.push(migrationName);
-          // Mark as executed to prevent duplicate execution when both .ts and .js
-          // versions of the same migration file exist in the migrations directory.
           executedNames.add(migrationName);
           this.logger.log(`✅ [${schemaName}] Success: ${migrationName}`);
         } catch (error) {
@@ -121,16 +120,15 @@ export class TenantMigrationRunnerService {
               `⚠️ [${schemaName}] No active transaction to rollback for ${migrationName}`,
             );
           }
-
           this.logger.error(`🔥 [${schemaName}] Failed: ${migrationName} -> ${error.message}`);
           result.errors.push(error.message);
           throw error;
         }
       }
     } finally {
-      // 🛡️ Always reset path and release the connection
+      // Always reset to public and release the connection back to the pool
       try {
-        await runner.query('SELECT set_config($1, $2, true)', ['search_path', 'public']);
+        await runner.query(`SET search_path TO public`);
       } catch (e) {}
       await runner.release();
     }
@@ -148,34 +146,25 @@ export class TenantMigrationRunnerService {
       .filter((f) => f.endsWith('.ts') || f.endsWith('.js'))
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
-    // In production, prefer .js files over .ts files
     const isProduction = process.env.NODE_ENV === 'production';
-    if (isProduction) {
-      return files.filter((f) => f.endsWith('.js'));
-    }
-
-    // In development, prefer .ts files
-    return files.filter((f) => f.endsWith('.ts'));
+    return isProduction
+      ? files.filter((f) => f.endsWith('.js'))
+      : files.filter((f) => f.endsWith('.ts'));
   }
 
   private async ensureMigrationsTable(runner: QueryRunner, schema: string) {
-    // Ensuring the tracking table exists within the specific tenant schema
     await runner.query(`
       CREATE TABLE IF NOT EXISTS "${schema}".migrations (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL UNIQUE,
-        timestamp BIGINT NOT NULL,
-        executed_at TIMESTAMP NOT NULL DEFAULT NOW()
+        id            SERIAL        PRIMARY KEY,
+        name          VARCHAR(255)  NOT NULL UNIQUE,
+        timestamp     BIGINT        NOT NULL,
+        executed_at   TIMESTAMP     NOT NULL DEFAULT NOW()
       )
     `);
   }
 
-  /**
-   * Matches the pattern used in TenantQueryRunnerService
-   */
   private validateSchemaName(name: string) {
     const pattern = /^tenant_[a-z0-9_]+_[a-z0-9]+$/;
-    // Allow 'public' for certain internal tests, otherwise strict tenant pattern
     if (name !== 'public' && !pattern.test(name)) {
       throw new InternalServerErrorException(`Invalid schema format: ${name}`);
     }

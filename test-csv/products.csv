@@ -1,0 +1,11 @@
+external_id,name,price,stock
+PROD-001,ERP Starter License,2499.00,999
+PROD-002,ERP Professional License,7499.00,999
+PROD-003,ERP Enterprise License,24999.00,999
+PROD-004,Implementation Services - Basic,4999.00,50
+PROD-005,Implementation Services - Advanced,14999.00,20
+PROD-006,API Integration Pack,1999.00,100
+PROD-007,Data Migration Service,3499.00,30
+PROD-008,Training Package - 10 Users,1499.00,200
+PROD-009,Premium Support - Annual,4999.00,999
+PROD-010,Custom Report Builder,2999.00,999

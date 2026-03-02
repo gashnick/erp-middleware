@@ -48,9 +48,6 @@ export const setupTestApp = async (): Promise<INestApplication> => {
   authService = moduleFixture.get<AuthService>(AuthService);
   db = moduleFixture.get<TenantQueryRunnerService>(TenantQueryRunnerService);
 
-  // Ensure a clean database state before any E2E tests run
-  // This uses the same reset helper the tests call in beforeEach so the
-  // environment is deterministic even if previous runs left artifacts.
   await resetDatabase();
 
   return app;
@@ -63,22 +60,15 @@ export const teardownTestApp = async (): Promise<void> => {
   }
 };
 
-/**
- * Cleanly resets the DB using getRunner() to bypass
- * standard tenant transaction constraints for administrative drops.
- */
 export const resetDatabase = async (): Promise<void> => {
   if (!db) return;
 
   for (let attempt = 1; attempt <= MAX_CLEANUP_RETRIES; attempt++) {
-    const runner = await db.getRunner(); // Using the new helper method
+    const runner = await db.getRunner();
     try {
       await runner.startTransaction();
-
-      // 1. Connection Cleanup
       await terminateOtherConnections(runner);
 
-      // 2. Schema Cleanup
       const schemas = await runner.query(
         `SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'tenant_%'`,
       );
@@ -87,7 +77,7 @@ export const resetDatabase = async (): Promise<void> => {
         await runner.query(`DROP SCHEMA IF EXISTS "${s.schema_name}" CASCADE`);
       }
 
-      // 3. Public Table Cleanup
+      // Updated exclusion: Do not truncate subscription_plans (seed data)
       const tables = await runner.query(
         `SELECT table_name FROM information_schema.tables 
          WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
@@ -96,69 +86,31 @@ export const resetDatabase = async (): Promise<void> => {
 
       if (tables.length > 0) {
         const tableList = tables.map((t: any) => `public."${t.table_name}"`).join(', ');
-        // Log table list for debugging cleanup issues
-        // eslint-disable-next-line no-console
-        // console.log('[resetDatabase] truncating tables:', tableList);
-
-        // Log count of users before truncation to detect leakage
-        try {
-          const before = await runner.query(`SELECT COUNT(*)::int as cnt FROM public.users`);
-          // eslint-disable-next-line no-console
-          console.log('[resetDatabase] public.users count before:', before[0]?.cnt ?? 0);
-        } catch (e) {
-          // ignore if table doesn't exist yet
-        }
-
         await runner.query(`TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE`);
-
-        try {
-          const after = await runner.query(`SELECT COUNT(*)::int as cnt FROM public.users`);
-          // eslint-disable-next-line no-console
-          //console.log('[resetDatabase] public.users count after:', after[0]?.cnt ?? 0);
-        } catch (e) {
-          // ignore
-        }
       }
 
-      // 4. Restore Seeds
-      // Acquire an advisory lock so parallel test workers don't race when
-      // inserting seed rows (which can cause unique constraint violations).
-      // Use a fixed key for all test processes.
       const SEED_LOCK_KEY = 987654321;
       await runner.query('SELECT pg_advisory_lock($1)', [SEED_LOCK_KEY]);
       try {
         await restoreSubscriptionPlans(runner);
         await restoreUsers(runner);
       } finally {
-        // best-effort unlock; safe even if lock wasn't held
         await runner.query('SELECT pg_advisory_unlock($1)', [SEED_LOCK_KEY]);
       }
 
-      // Commit only if transaction is active
       if (runner.isTransactionActive) {
         await runner.commitTransaction();
-      } else {
-        // eslint-disable-next-line no-console
-        //console.warn('[resetDatabase] no active transaction to commit');
       }
       Object.keys(tenants).forEach((key) => delete tenants[key]);
       return;
     } catch (error) {
-      if (runner.isTransactionActive) {
-        await runner.rollbackTransaction();
-      } else {
-        // eslint-disable-next-line no-console
-        //console.warn('[resetDatabase] no active transaction to rollback');
-      }
+      if (runner.isTransactionActive) await runner.rollbackTransaction();
       if (attempt === MAX_CLEANUP_RETRIES) throw error;
       await new Promise((res) => setTimeout(res, CLEANUP_RETRY_DELAY_MS * attempt));
     } finally {
-      // Ensure any advisory lock is released (best-effort) before releasing the runner.
       try {
         await runner.query('SELECT pg_advisory_unlock($1)', [987654321]);
-      } catch (e) {
-        // ignore
-      }
+      } catch (e) {}
       await runner.release();
     }
   }
@@ -176,13 +128,16 @@ async function terminateOtherConnections(runner: QueryRunner): Promise<void> {
 }
 
 async function restoreSubscriptionPlans(runner: QueryRunner): Promise<void> {
+  // Clear and re-seed to ensure deterministic IDs and limits
   await runner.query(`DELETE FROM public.subscription_plans`);
   await runner.query(
     `INSERT INTO public.subscription_plans 
       (name, slug, description, price_monthly, max_users, max_storage_gb, max_monthly_invoices, max_api_calls_monthly, trial_days, sort_order)
      VALUES 
-      ('Free Tier', 'free', 'Trial period', 0.0, 2, 1, 10, 100, 0, 0),
-      ('Enterprise', 'enterprise', 'Large organizations', 149.0, -1, 500, -1, 100000, 14, 3)`,
+      ('Free Tier', 'free', 'Trial period', 0.00, 2, 1, 10, 100, 0, 0),
+      ('Basic', 'basic', 'Small teams', 19.00, 3, 5, 50, 1000, 14, 1),
+      ('Standard', 'standard', 'Growing businesses', 49.00, 10, 50, 500, 10000, 14, 2),
+      ('Enterprise', 'enterprise', 'Large organizations', 149.00, -1, 500, -1, 100000, 14, 3)`,
   );
 }
 
@@ -190,7 +145,6 @@ async function restoreUsers(runner: QueryRunner): Promise<void> {
   const salt = await bcrypt.genSalt(10);
   const hash = await bcrypt.hash('Password123!', salt);
 
-  // Defensive: check existing admin user first to avoid unique key races
   const existing = await runner.query(
     `SELECT id FROM public.users WHERE email = $1 AND tenant_id IS NULL LIMIT 1`,
     ['admin@system.com'],
@@ -207,9 +161,9 @@ async function restoreUsers(runner: QueryRunner): Promise<void> {
 export const createTenantWithUser = async (
   email: string,
   role: 'ADMIN' | 'STAFF' | 'ANALYST' = 'ADMIN',
+  planSlug: string = 'enterprise', // Defaulting to enterprise for tests
 ) => {
   return await runWithTenantContext(SYSTEM_IDENTITY, async () => {
-    // We use standard services here because they utilize db.transaction internally
     const owner = await usersService.create(null, {
       email: `owner-${Date.now()}@test.com`,
       password: 'Password123!',
@@ -219,9 +173,31 @@ export const createTenantWithUser = async (
 
     const tenantInfo = await tenantsService.createOrganization(owner.id, {
       companyName: `TestOrg-${email}`,
-      subscriptionPlan: 'enterprise',
+      subscriptionPlan: planSlug,
       dataSourceType: 'external',
     });
+
+    // --- FIX: Create the Subscription Record for the Rate Limiter to find ---
+    const runner = await db.getRunner();
+    try {
+      const plans = await runner.query(`SELECT id FROM public.subscription_plans WHERE slug = $1`, [
+        planSlug,
+      ]);
+      const planId = plans[0]?.id;
+
+      if (planId) {
+        await runner.query(
+          `INSERT INTO public.subscriptions 
+           (tenant_id, plan_id, status, current_period_end)
+           VALUES ($1, $2, 'active', NOW() + INTERVAL '30 days')
+           ON CONFLICT (tenant_id) DO UPDATE SET plan_id = EXCLUDED.plan_id`,
+          [tenantInfo.tenantId, planId],
+        );
+      }
+    } finally {
+      await runner.release();
+    }
+    // -----------------------------------------------------------------------
 
     let targetUser = owner;
     if (role !== 'ADMIN') {

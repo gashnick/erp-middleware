@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, OnModuleInit } from '@nestjs/common';
+import { MiddlewareConsumer, Module, OnModuleInit, RequestMethod } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { AppController } from './app.controller';
 import { DashboardController } from './dashboard/dashboard.controller';
@@ -15,14 +15,21 @@ import { FinanceModule } from '@finance/finance.module';
 import { InvoicesModule } from '@finance/invoices/invoices.module';
 import { ConnectorsModule } from '@connectors/connectors.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { RedisModule } from '@nestjs-modules/ioredis';
 import { AuditModule } from '@common/audit/audit.module';
 import { EncryptionModule } from '@common/security/encryption.module';
 import { APP_FILTER } from '@nestjs/core';
 import { AllExceptionsFilter } from '@common/filters/all-exceptions.filter';
 import { MetricsModule } from '@common/metrics/metrics.module';
 import { SubscriptionPlanModule } from './subscription-plans/subscriptionPlan.module';
-import { AIModule } from './ai/ai.module';
 import { GraphQLModule } from './graphql/graphql.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { AnomalyModule } from './anomaly/anomaly.module';
+import { ChatModule } from '@chat/chat.module';
+import { KnowledgeGraphModule } from './knowledgeGraph/knowledge-graph.module';
+import { FeedbackModule } from './feedback/feedback.module';
+import { BullModule } from '@nestjs/bull';
+import { PubSubModule } from '@common/pubsub/pubsub.module';
 
 @Module({
   imports: [
@@ -39,13 +46,28 @@ import { GraphQLModule } from './graphql/graphql.module';
       signOptions: { expiresIn: '1h' },
     }),
     EventEmitterModule.forRoot(),
+    // Provide a global ioredis client for modules that use @InjectRedis()
+    RedisModule.forRoot({
+      type: 'single',
+      options: {
+        host: 'localhost',
+        port: Number(process.env.REDIS_PORT) || 6379,
+      },
+    }),
     AuditModule,
     EncryptionModule,
     ConnectorsModule,
     MetricsModule,
     SubscriptionPlanModule,
     GraphQLModule,
-    // AIModule, // Temporarily disabled
+    AnalyticsModule,
+    AnomalyModule,
+    ChatModule,
+    KnowledgeGraphModule,
+    FeedbackModule,
+    BullModule.forRoot({ redis: { host: process.env.REDIS_HOS, port: 6379 } }),
+    PubSubModule,
+    AnalyticsModule,
   ],
   controllers: [AppController, DashboardController],
   providers: [
@@ -68,12 +90,11 @@ export class AppModule implements OnModuleInit {
         '/health',
         '/health/database',
         '*path/swagger',
-        '/api',
         'auth/(.*)',
         'tenants',
         'tenants/(.*)',
       )
-      .forRoutes('*');
+      .forRoutes({ path: '*', method: RequestMethod.ALL });
   }
 
   async onModuleInit() {

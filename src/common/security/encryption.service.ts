@@ -1,5 +1,5 @@
 // src/common/security/encryption.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto';
 
@@ -9,13 +9,12 @@ export class EncryptionService {
   private readonly masterKey: string;
 
   constructor(private configService: ConfigService) {
-    // Adding '!' tells TS "I promise this won't be undefined by the time I use it"
-    this.masterKey = this.configService.get<string>('GLOBAL_MASTER_KEY')!;
+    const key = this.configService.get<string>('GLOBAL_MASTER_KEY');
 
-    // Your validation remains crucial for runtime safety
-    if (!this.masterKey || this.masterKey.length < 32) {
+    if (!key || key.length < 32) {
       throw new Error('GLOBAL_MASTER_KEY must be at least 32 characters');
     }
+    this.masterKey = key;
   }
 
   generateTenantSecret(): string {
@@ -23,13 +22,15 @@ export class EncryptionService {
   }
 
   /**
-   * Encrypts a string using a provided secret (like a tenant_secret)
-   * grounded by the GLOBAL_MASTER_KEY
+   * Encrypts data using the internal Master Key.
+   * Removed 'tenantSecret' parameter to prevent 'undefined' injection.
    */
-  encrypt(text: string, tenantSecret: string): string {
+  encrypt(text: string): string {
+    if (!text) return text;
+
     const iv = randomBytes(12);
-    // Combine Master Key + Tenant Secret for maximum security
-    const key = scryptSync(tenantSecret, this.masterKey, 32);
+    // Fixed: Always uses validated internal masterKey
+    const key = scryptSync(this.masterKey, 'salt-is-internal', 32);
     const cipher = createCipheriv(this.algorithm, key, iv);
 
     const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
@@ -38,18 +39,24 @@ export class EncryptionService {
     return `${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
   }
 
-  decrypt(hash: string, tenantSecret: string): string {
-    const [ivHex, tagHex, contentHex] = hash.split(':');
-    const key = scryptSync(tenantSecret, this.masterKey, 32);
-    const decipher = createDecipheriv(this.algorithm, key, Buffer.from(ivHex, 'hex'));
+  decrypt(hash: string): string {
+    if (!hash || !hash.includes(':')) return hash;
 
-    decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+    try {
+      const [ivHex, tagHex, contentHex] = hash.split(':');
+      const key = scryptSync(this.masterKey, 'salt-is-internal', 32);
+      const decipher = createDecipheriv(this.algorithm, key, Buffer.from(ivHex, 'hex'));
 
-    const decrypted = Buffer.concat([
-      decipher.update(Buffer.from(contentHex, 'hex')),
-      decipher.final(),
-    ]);
+      decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
 
-    return decrypted.toString('utf8');
+      const decrypted = Buffer.concat([
+        decipher.update(Buffer.from(contentHex, 'hex')),
+        decipher.final(),
+      ]);
+
+      return decrypted.toString('utf8');
+    } catch (err) {
+      throw new InternalServerErrorException('Decryption failed: Integrity check failed');
+    }
   }
 }

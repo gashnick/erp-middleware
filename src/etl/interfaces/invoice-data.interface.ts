@@ -6,4 +6,6 @@ export interface ValidInvoice {
   is_encrypted: boolean; // Flag for the decryption layer
   metadata?: string; // AI/Lineage data (JSON string)
   external_id?: string; // For ERP sync (QuickBooks/Odoo)
+  invoice_date?: Date; // Extracted from source system
+  due_date?: Date; // Payment due date from source system
 }

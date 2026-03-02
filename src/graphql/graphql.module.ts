@@ -1,29 +1,32 @@
 import { Module } from '@nestjs/common';
-// The project may not have graphql packages installed in all environments; use ts-ignore to avoid hard compile failure
+import { Request } from 'express';
 // @ts-ignore
 import { GraphQLModule as NestGraphQLModule } from '@nestjs/graphql';
 // @ts-ignore
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
-import { InvoiceResolver } from './resolvers/invoice.resolver';
-import { InvoicesModule } from '@finance/invoices/invoices.module';
 
 @Module({
   imports: [
-    // @ts-ignore - runtime may provide GraphQL packages when used in feature branch
     NestGraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
-      autoSchemaFile: 'schema.gql',
+      autoSchemaFile: true,
       sortSchema: true,
+      subscriptions: {
+        'graphql-ws': {
+          onConnect: (context: any) => {
+            const req = context.extra?.request;
+            return { req };
+          },
+        },
+      },
       playground: true,
-      context: ({ req, res }: { req: any; res: any }) => ({ req, res }),
-      formatError: (error: any) => ({
-        message: error.message,
-        code: error.extensions?.code || 'INTERNAL_SERVER_ERROR',
-        path: error.path,
-      }),
+      // Just pass req — the middleware sets AsyncLocalStorage correctly via
+      // tenantContext.run() which covers the entire request pipeline.
+      // The resolver's runWithTenantContext handles the GraphQL async scope.
+      // enterWith() was removed because it set a parent scope that leaked into
+      // concurrent Promise.all chains inside ContextBuilderService.
+      context: ({ req }: { req: Request }) => ({ req }),
     }),
-    InvoicesModule,
   ],
-  providers: [InvoiceResolver],
 })
 export class GraphQLModule {}

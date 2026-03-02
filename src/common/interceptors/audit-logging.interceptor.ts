@@ -19,15 +19,26 @@ export class AuditLoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('Audit');
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const request = context.switchToHttp().getRequest();
+    // Support both HTTP and GraphQL contexts
+    const httpCtx = context.switchToHttp();
+    let request: any = httpCtx.getRequest();
+    if (!request) {
+      // GraphQL context: args[2] is the context object in Apollo
+      try {
+        const gqlCtx: any = context.getArgByIndex(2) || context.getArgByIndex(1);
+        request = gqlCtx?.req || gqlCtx?.request || null;
+      } catch (e) {
+        request = null;
+      }
+    }
     const startTime = Date.now();
 
     // Extract tenant context if available
     let auditData: any = {
-      method: request.method,
-      path: request.path,
-      ip: request.ip,
-      userAgent: request.headers['user-agent'],
+      method: request?.method || 'N/A',
+      path: request?.path || request?.url || 'N/A',
+      ip: request?.ip || 'N/A',
+      userAgent: request?.headers?.['user-agent'] || 'N/A',
       timestamp: new Date().toISOString(),
     };
 
@@ -57,7 +68,7 @@ export class AuditLoggingInterceptor implements NestInterceptor {
         error: (error) => {
           const duration = Date.now() - startTime;
           // 1. The "Easy Reading" log for you
-          console.log(`🚀 [API] ${request.method} ${request.path} - ${duration}ms`);
+          console.log(`🚀 [API] ${auditData.method} ${auditData.path} - ${duration}ms`);
 
           // 2. The "Structured Log" for the Month 1 Requirements
           this.logger.log(JSON.stringify({ ...auditData, status: 'success', duration }));

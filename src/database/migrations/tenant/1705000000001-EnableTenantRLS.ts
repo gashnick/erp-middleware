@@ -1,31 +1,47 @@
 export class EnableTenantRLS1705000000001 {
   public async up(queryRunner: any): Promise<void> {
-    // These tables exist inside the unique tenant schema
     const tenantTables = [
       'contacts',
       'invoices',
+      'expenses',
+      'bank_transactions',
       'products',
       'orders',
       'quarantine_records',
       'ai_insights',
+      'chat_sessions',
+      'chat_messages',
+      'anomalies',
+      'kg_entities',
+      'kg_relationships',
+      'insight_feedback',
+      'prompt_templates',
     ];
 
     for (const table of tenantTables) {
       await queryRunner.query(`
-        DO $$ 
+        DO $$
         BEGIN
-          -- Only apply to the current tenant schema
-          IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = '${table}') THEN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = current_schema()
+            AND table_name = '${table}'
+          ) THEN
             ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY;
-            
-            EXECUTE format('DROP POLICY IF EXISTS tenant_isolation_%I ON %I', '${table}', '${table}');
-            
-            EXECUTE format('
-              CREATE POLICY tenant_isolation_%I ON %I
+
+            DROP POLICY IF EXISTS schema_isolation ON "${table}";
+
+            -- Policy uses current_schema() — no tenant_id column needed.
+            -- Allows access only when the connection's search_path matches
+            -- the schema this table actually lives in.
+            CREATE POLICY schema_isolation ON "${table}"
               AS PERMISSIVE FOR ALL
-              USING (public.is_system_operation() OR tenant_id::text = public.get_current_tenant_id())
-              WITH CHECK (public.is_system_operation() OR tenant_id::text = public.get_current_tenant_id())', 
-              '${table}', '${table}');
+              USING (current_schema() = (
+                SELECT table_schema
+                FROM information_schema.tables
+                WHERE table_name = '${table}'
+                LIMIT 1
+              ));
           END IF;
         END $$;
       `);
@@ -36,11 +52,20 @@ export class EnableTenantRLS1705000000001 {
     const tenantTables = [
       'contacts',
       'invoices',
+      'expenses',
+      'bank_transactions',
       'products',
       'orders',
       'quarantine_records',
       'ai_insights',
+      'chat_sessions',
+      'chat_messages',
+      'anomalies',
+      'kg_entities',
+      'kg_relationships',
+      'insight_feedback',
     ];
+
     for (const table of tenantTables) {
       await queryRunner.query(`ALTER TABLE IF EXISTS "${table}" DISABLE ROW LEVEL SECURITY;`);
     }

@@ -1,0 +1,34 @@
+type,amount,currency,transaction_date,description,reference
+credit,12500.00,USD,2025-01-20,Payment received - Global Tech Partners,REF-2025-001
+credit,8750.00,USD,2025-01-28,Payment received - Metro Services Inc,REF-2025-002
+credit,4200.00,USD,2025-02-10,Payment received - Sunrise Consulting,REF-2025-003
+credit,15000.00,USD,2025-02-20,Payment received - Blue Ocean Retail,REF-2025-004
+credit,3300.00,USD,2025-03-12,Payment received - Meridian Healthcare,REF-2025-005
+credit,9800.00,USD,2025-03-25,Payment received - Global Tech Partners,REF-2025-006
+credit,6400.00,USD,2025-04-10,Payment received - Vertex Solutions,REF-2025-007
+credit,11200.00,USD,2025-04-28,Payment received - Cascade Industries,REF-2025-008
+credit,7600.00,USD,2025-05-15,Payment received - Nexus Trading Co,REF-2025-009
+credit,18500.00,USD,2025-06-02,Payment received - Sunrise Consulting,REF-2025-010
+credit,5100.00,USD,2025-06-18,Payment received - Blue Ocean Retail,REF-2025-011
+credit,13700.00,USD,2025-07-05,Payment received - Meridian Healthcare,REF-2025-012
+credit,9200.00,USD,2025-07-18,Payment received - Metro Services Inc,REF-2025-013
+credit,14500.00,USD,2025-07-29,Payment received - Global Tech Partners,REF-2025-014
+credit,85000.00,USD,2025-11-10,Payment received - Atlas Cloud Services,REF-2025-021
+credit,11800.00,USD,2025-11-22,Payment received - Global Tech Partners,REF-2025-022
+credit,7300.00,USD,2025-12-08,Payment received - Metro Services Inc,REF-2025-023
+credit,9200.00,USD,2026-01-15,Payment received - Horizon Media Group,REF-2026-001
+credit,14500.00,USD,2026-01-28,Payment received - Solaris Energy Corp,REF-2026-002
+debit,45000.00,USD,2025-11-30,Payroll disbursement - November,PAY-2025-11
+debit,38000.00,USD,2025-12-31,Payroll disbursement - December,PAY-2025-12
+debit,38000.00,USD,2026-01-31,Payroll disbursement - January,PAY-2026-01
+debit,39500.00,USD,2026-02-28,Payroll disbursement - February,PAY-2026-02
+debit,12000.00,USD,2025-11-05,AWS compute bill - November,AWS-2025-11
+debit,13500.00,USD,2025-12-05,AWS compute bill - December,AWS-2025-12
+debit,11800.00,USD,2026-01-05,AWS compute bill - January,AWS-2026-01
+debit,47500.00,USD,2026-02-05,AWS compute bill - February spike,AWS-2026-02
+debit,3200.00,USD,2025-11-01,Office rent - November,RENT-2025-11
+debit,3200.00,USD,2025-12-01,Office rent - December,RENT-2025-12
+debit,3200.00,USD,2026-01-01,Office rent - January,RENT-2026-01
+debit,3200.00,USD,2026-02-01,Office rent - February,RENT-2026-02
+debit,5500.00,USD,2025-11-10,Google Ads campaign Q4,MKT-2025-001
+debit,8900.00,USD,2026-01-20,Trade show participation,MKT-2026-001

@@ -45,10 +45,6 @@ describe('ConnectorsController', () => {
           useValue: mockRLSContextService,
         },
         TenantQueryRunnerService,
-        {
-          provide: TenantMigrationRunnerService,
-          useValue: {},
-        },
         TenantProvisioningService,
         EventEmitter2,
         EncryptionService,
@@ -101,7 +97,7 @@ describe('ConnectorsController', () => {
         buffer: Buffer.from('external_id,customer_name,amount\n1,Test Customer,100'),
         size: 100,
         originalname: 'test.csv',
-      } as Express.Multer.File;
+      } as any;
 
       const result = await controller.uploadCsv(mockFile);
 

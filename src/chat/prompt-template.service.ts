@@ -1,0 +1,110 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { TenantQueryRunnerService } from '@database/tenant-query-runner.service';
+
+export interface PromptTemplate {
+  id: string;
+  name: string;
+  content: string;
+  isActive: boolean;
+}
+
+// Canonical template definitions — single source of truth.
+// Any tenant whose stored template is missing required placeholders
+// will have it automatically repaired on first use.
+const CANONICAL_TEMPLATES: Record<string, string> = {
+  finance_chat: `You are a helpful financial assistant for an ERP system.
+You have access to the following REAL financial data for this tenant. This data comes directly from their invoices, bank transactions, and expense records.
+
+=== KPI SUMMARY ===
+{{kpiSummary}}
+
+=== RECENT ANOMALIES ===
+{{anomalySummary}}
+
+INSTRUCTIONS:
+- Answer questions using ONLY the data shown above.
+- Always cite specific figures when answering (e.g. "Based on your invoices, revenue in Nov 2025 was USD 96,800").
+- Never say you lack access to financial data — the KPI Summary above IS your data source.
+- If a specific metric is not present in the data above, say it is not available in the current dataset.
+- If anomalies are listed, proactively flag them when relevant.
+- Be concise and professional.`,
+};
+
+// Placeholders that MUST exist in a template for it to be considered valid.
+const REQUIRED_PLACEHOLDERS: Record<string, string[]> = {
+  finance_chat: ['{{kpiSummary}}', '{{anomalySummary}}'],
+};
+
+@Injectable()
+export class PromptTemplateService {
+  private readonly logger = new Logger(PromptTemplateService.name);
+
+  private static readonly GET_ACTIVE_SQL = `
+    SELECT id, name, content, is_active AS "isActive"
+    FROM prompt_templates
+    WHERE name = $1 AND is_active = true
+    LIMIT 1
+  `;
+
+  private static readonly UPSERT_SQL = `
+    INSERT INTO prompt_templates (name, content, is_active)
+    VALUES ($1, $2, true)
+    ON CONFLICT (name) DO UPDATE SET content = EXCLUDED.content, is_active = true
+  `;
+
+  constructor(private readonly tenantDb: TenantQueryRunnerService) {}
+
+  async getActive(name: string): Promise<PromptTemplate> {
+    const rows = await this.tenantDb.executeTenant<PromptTemplate>(
+      PromptTemplateService.GET_ACTIVE_SQL,
+      [name],
+    );
+
+    const template = rows[0];
+
+    // If template exists but is missing required placeholders, repair it.
+    if (template && this.isMissingPlaceholders(name, template.content)) {
+      this.logger.warn(
+        `Template '${name}' is missing required placeholders — auto-repairing for this tenant`,
+      );
+      return this.upsertCanonical(name);
+    }
+
+    // If no template found, seed the canonical one.
+    if (!template) {
+      this.logger.warn(`No active prompt template '${name}' — seeding canonical template`);
+      return this.upsertCanonical(name);
+    }
+
+    return template;
+  }
+
+  render(template: PromptTemplate, vars: Record<string, string>): string {
+    return template.content.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '');
+  }
+
+  // ── Private helpers ────────────────────────────────────────────────────────
+
+  private isMissingPlaceholders(name: string, content: string): boolean {
+    const required = REQUIRED_PLACEHOLDERS[name];
+    if (!required) return false;
+    return required.some((placeholder) => !content.includes(placeholder));
+  }
+
+  private async upsertCanonical(name: string): Promise<PromptTemplate> {
+    const content = CANONICAL_TEMPLATES[name];
+    if (!content) {
+      // No canonical template defined — return minimal fallback without DB write
+      return { id: 'default', name, content: 'You are a helpful assistant.', isActive: true };
+    }
+
+    try {
+      await this.tenantDb.executeTenant(PromptTemplateService.UPSERT_SQL, [name, content]);
+      this.logger.log(`Canonical template '${name}' upserted for tenant`);
+    } catch (e) {
+      this.logger.error(`Failed to upsert template '${name}': ${e.message}`);
+    }
+
+    return { id: 'canonical', name, content, isActive: true };
+  }
+}

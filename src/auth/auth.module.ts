@@ -24,7 +24,7 @@ import { DatabaseModule } from '@database/database.module';
     forwardRef(() => TenantsModule), // Needed for TenantProvisioningService
     forwardRef(() => UsersModule),
     DatabaseModule, // Needed for TenantQueryRunnerService
-    PassportModule.register({ defaultStrategy: 'jwt' }),
+    PassportModule.register({ defaultStrategy: 'jwt', session: false }),
     JwtModule.register({
       // This remains the "Global Secret" for System Mode
       secret: process.env.JWT_SECRET || 'fallback_secret_for_dev_only',

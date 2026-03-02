@@ -41,7 +41,7 @@ export class AuditLogService {
     try {
       // Get previous log entry hash for chaining
       const prevRows = await this.tenantDb.executePublic(
-        `SELECT * FROM public.audit_logs ORDER BY timestamp DESC LIMIT 1`,
+        `SELECT *, created_at AS timestamp FROM public.audit_logs ORDER BY created_at DESC LIMIT 1`,
         [],
       );
 
@@ -60,7 +60,7 @@ export class AuditLogService {
         `
         INSERT INTO public.audit_logs (
           tenant_id, user_id, action, resource_type, resource_id,
-          ip_address, user_agent, metadata, previous_hash, current_hash, timestamp
+          ip_address, user_agent, metadata, previous_hash, current_hash, created_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
         `,
         [
@@ -91,7 +91,7 @@ export class AuditLogService {
    */
   async verifyChainIntegrity(): Promise<{ valid: boolean; brokenAt?: number }> {
     const logs = await this.tenantDb.executePublic(
-      `SELECT * FROM public.audit_logs ORDER BY timestamp ASC`,
+      `SELECT *, created_at AS timestamp FROM public.audit_logs ORDER BY created_at ASC`,
       [],
     );
 
@@ -170,19 +170,19 @@ export class AuditLogService {
     }
 
     if (filters.startDate) {
-      clauses.push(`timestamp >= $${idx++}`);
+      clauses.push(`created_at >= $${idx++}`);
       params.push(filters.startDate);
     }
 
     if (filters.endDate) {
-      clauses.push(`timestamp <= $${idx++}`);
+      clauses.push(`created_at <= $${idx++}`);
       params.push(filters.endDate);
     }
 
     const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
     const limit = filters.limit || 100;
 
-    const sql = `SELECT * FROM public.audit_logs ${where} ORDER BY timestamp DESC LIMIT ${limit}`;
+    const sql = `SELECT *, created_at AS timestamp FROM public.audit_logs ${where} ORDER BY created_at DESC LIMIT ${limit}`;
 
     return this.tenantDb.executePublic(sql, params);
   }

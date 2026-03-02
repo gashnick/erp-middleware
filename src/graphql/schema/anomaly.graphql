@@ -1,0 +1,24 @@
+enum AnomalyType {
+  EXPENSE_SPIKE
+  DUPLICATE_INVOICE
+  UNUSUAL_PAYMENT
+}
+
+type Anomaly {
+  id: ID!
+  type: AnomalyType!
+  score: Float!
+  confidence: Float!
+  explanation: String!
+  relatedIds: [String!]!
+  detectedAt: String!
+}
+
+extend type Query {
+  anomalies(types: [AnomalyType!], minScore: Float): [Anomaly!]!
+  anomaly(id: ID!): Anomaly
+}
+
+extend type Subscription {
+  anomalyRaised: Anomaly!
+}

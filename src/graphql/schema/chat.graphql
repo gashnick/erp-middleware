@@ -1,0 +1,36 @@
+union MessageContent = TextContent | ChartContent | TableContent | CsvContent | LinkContent
+
+type TextContent  { text: String! }
+type ChartContent { spec: String! }   # JSON-encoded Vega-Lite spec
+type TableContent { columns: [String!]!; rows: [[String]!]! }
+type CsvContent   { url: String!; filename: String! }
+type LinkContent  { url: String!; label: String! }
+
+type ChatMessage {
+  id:        ID!
+  sessionId: ID!
+  role:      String!
+  content:   MessageContent!
+  latencyMs: Int
+  createdAt: String!
+}
+
+type ChatSession {
+  id:        ID!
+  tenantId:  String!
+  messages:  [ChatMessage!]!
+  createdAt: String!
+}
+
+extend type Query {
+  chatSession(id: ID!): ChatSession
+}
+
+extend type Mutation {
+  createChatSession: ChatSession!
+  sendMessage(sessionId: ID!, text: String!): ChatMessage!
+}
+
+extend type Subscription {
+  messageStream(sessionId: ID!): ChatMessage!
+}

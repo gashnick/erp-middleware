@@ -36,7 +36,14 @@
     "^@chat/(.*)$": "<rootDir>/src/chat/$1",
     "^@audit/(.*)$": "<rootDir>/src/audit/$1",
     "^@common/(.*)$": "<rootDir>/src/common/$1",
-    "^@etl/(.*)$": "<rootDir>/src/etl/$1"
+    "^@etl/(.*)$": "<rootDir>/src/etl/$1",
+    "^@graphql/(.*)$": "<rootDir>/src/graphql/$1",
+    "^@analytics/(.*)$": "<rootDir>/src/analytics/$1",
+    "^anomaly/(.*)$": "<rootDir>/src/anomaly/$1",
+    "^chat/(.*)$": "<rootDir>/src/chat/$1",
+    "^feedback/(.*)$": "<rootDir>/src/feedback/$1",
+    "^knowledgeGraph/(.*)$": "<rootDir>/src/knowledgeGraph/$1",
+    "^jobs/(.*)$": "<rootDir>/src/jobs/$1"
   },
   "testTimeout": 60000,
   "maxWorkers": 1,

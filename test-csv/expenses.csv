@@ -1,0 +1,31 @@
+category,amount,currency,expense_date,description
+SOFTWARE,2400.00,USD,2025-11-01,Annual SaaS subscription - CRM platform
+SOFTWARE,850.00,USD,2025-11-15,Cloud storage expansion - AWS S3
+SOFTWARE,1200.00,USD,2025-12-01,Security monitoring tool license
+SOFTWARE,450.00,USD,2026-01-10,Project management tool - monthly
+SOFTWARE,320.00,USD,2026-02-01,Communication platform subscription
+PAYROLL,45000.00,USD,2025-11-30,Monthly payroll - engineering team
+PAYROLL,38000.00,USD,2025-12-31,Monthly payroll - engineering team
+PAYROLL,38000.00,USD,2026-01-31,Monthly payroll - engineering team
+PAYROLL,39500.00,USD,2026-02-28,Monthly payroll - engineering team
+OFFICE,3200.00,USD,2025-11-01,Office rent - November
+OFFICE,3200.00,USD,2025-12-01,Office rent - December
+OFFICE,3200.00,USD,2026-01-01,Office rent - January
+OFFICE,3200.00,USD,2026-02-01,Office rent - February
+OFFICE,840.00,USD,2025-11-20,Office supplies and equipment
+OFFICE,1100.00,USD,2026-01-15,Ergonomic furniture purchase
+MARKETING,5500.00,USD,2025-11-10,Google Ads campaign - Q4
+MARKETING,3200.00,USD,2025-12-05,LinkedIn advertising
+MARKETING,8900.00,USD,2026-01-20,Trade show participation fee
+MARKETING,2100.00,USD,2026-02-10,Content creation agency
+TRAVEL,1850.00,USD,2025-11-08,Client visit - flights and hotel
+TRAVEL,920.00,USD,2025-12-12,Conference attendance travel
+TRAVEL,2400.00,USD,2026-01-25,Sales team quarterly meetup
+TRAVEL,680.00,USD,2026-02-14,Remote client meeting travel
+INFRASTRUCTURE,12000.00,USD,2025-11-01,AWS compute - monthly bill
+INFRASTRUCTURE,13500.00,USD,2025-12-01,AWS compute - monthly bill
+INFRASTRUCTURE,11800.00,USD,2026-01-01,AWS compute - monthly bill
+INFRASTRUCTURE,47500.00,USD,2026-02-01,AWS compute - spike due to new product launch
+LEGAL,4500.00,USD,2025-11-15,Legal retainer - quarterly
+LEGAL,2200.00,USD,2026-01-10,Contract review - new enterprise client
+LEGAL,800.00,USD,2026-02-05,IP filing fees

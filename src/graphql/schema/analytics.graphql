@@ -1,0 +1,26 @@
+type MonthlyRevenue {
+  month: Int!
+  year: Int!
+  revenue: Float!
+  currency: String!
+}
+
+type ExpenseCategory {
+  category: String!
+  vendorId: String!
+  vendorName: String!
+  total: Float!
+  currency: String!
+}
+
+type CashPosition {
+  balance: Float!
+  currency: String!
+  asOf: String!
+}
+
+extend type Query {
+  revenueByMonth(year: Int!): [MonthlyRevenue!]!
+  expenseBreakdown(from: String!, to: String!): [ExpenseCategory!]!
+  cashPosition(asOf: String): CashPosition
+}

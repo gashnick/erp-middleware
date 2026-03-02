@@ -70,7 +70,6 @@ describe('AuthController', () => {
       jest.spyOn(authService, 'validateUser').mockResolvedValue(mockUser as any);
       jest.spyOn(authService, 'login').mockResolvedValue({
         access_token: 'token',
-        refresh_token: 'refresh_token',
         user: {
           id: mockUser.id,
           email: mockUser.email,
@@ -84,7 +83,6 @@ describe('AuthController', () => {
       expect(authService.validateUser).toHaveBeenCalledWith(loginDto.email, loginDto.password);
       expect(authService.login).toHaveBeenCalled();
       expect(result).toHaveProperty('access_token');
-      expect(result).toHaveProperty('refresh_token');
       expect(result).toHaveProperty('user');
     });
 

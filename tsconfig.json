@@ -33,7 +33,14 @@
       "@ai/*": ["src/ai/*"],
       "@chat/*": ["src/chat/*"],
       "@audit/*": ["src/audit/*"],
-      "@common/*": ["src/common/*"]
+      "@common/*": ["src/common/*"],
+      "@analytics/*": ["src/analytics/*"],
+      "@anomaly/*": ["src/anomaly/*"],
+      "chat/*": ["src/chat/*"],
+      "@backup/*": ["src/backup/*"],
+      "@graphql/*": ["src/graphql/*"],
+      "@jobs/*": ["src/jobs/*"],
+      "@knowledgeGraph/*": ["src/knowledgeGraph/*"]
     }
   }
 }

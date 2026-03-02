@@ -15,9 +15,10 @@ import { TenantGuard } from '@common/guards/tenant.guard';
 import { TenantRateLimitGuard } from '@common/guards/tenant-rate-limit.guard';
 import { ActiveTenant } from '@common/decorators/active-tenant.decorator';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
+import { getTenantContext } from '@common/context/tenant-context';
 
 @Controller('invoices')
-@UseGuards(JwtAuthGuard, TenantGuard, TenantRateLimitGuard) // 🛡️ TenantGuard ensures tenantId exists before reaching here
+@UseGuards(JwtAuthGuard, TenantGuard, TenantRateLimitGuard)
 export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 
@@ -47,20 +48,11 @@ export class InvoicesController {
   }
 
   @Post('export')
-  async export(@ActiveTenant('id') tenantId: string) {
-    // Minimal RBAC: only ADMIN/MANAGER may export; TenantGuard ensures tenant context exists
-    // We inspect the tenant context via ActiveTenant decorator only for tenant id; use the tenant context helper
-    // to check role when necessary. For now, return Forbidden for non-admins as tests expect.
-    // NOTE: We rely on higher-level guards for authentication; here we enforce role semantics.
-    // Importing getTenantContext dynamically to avoid circular deps
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { getTenantContext, UserRole } = require('@common/context/tenant-context');
+  async export() {
     const ctx = getTenantContext();
-    if (ctx.userRole !== UserRole.ADMIN && ctx.userRole !== 'ADMIN') {
+    if (ctx?.userRole !== 'ADMIN') {
       throw new ForbiddenException('Insufficient privileges to export invoices');
     }
-
-    // Placeholder export response; real implementation will stream/export data
     return { exported: true };
   }
 }

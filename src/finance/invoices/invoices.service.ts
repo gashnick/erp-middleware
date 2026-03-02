@@ -1,7 +1,7 @@
+// src/invoices/invoices.service.ts
 import { ConflictException, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { TenantQueryRunnerService } from '@database/tenant-query-runner.service';
 import { EncryptionService } from '@common/security/encryption.service';
-import { EtlService } from '../../etl/services/etl.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 
@@ -12,37 +12,34 @@ export class InvoicesService {
   constructor(
     private readonly tenantDb: TenantQueryRunnerService,
     private readonly encryptionService: EncryptionService,
-    private readonly etlService: EtlService,
+    // EtlService dependency removed as getTenantSecret is no longer needed
   ) {}
 
+  /**
+   * Creates an invoice with field-level encryption.
+   */
   async create(tenantId: string, dto: CreateInvoiceDto) {
-    // 1. Fetch Tenant Secret for Field-Level Encryption
-    const tenantSecret = await this.etlService.getTenantSecret(tenantId);
-
-    // 2. Encrypt PII (Personally Identifiable Information)
-    const encryptedCustomer = this.encryptionService.encrypt(dto.customer_name, tenantSecret);
+    // 1. Encrypt PII using the internalized Master Key logic
+    const encryptedCustomer = this.encryptionService.encrypt(dto.customer_name);
     const encryptedInvoiceNumber = this.encryptionService.encrypt(
       dto.invoice_number || `INV-${Date.now()}`,
-      tenantSecret,
     );
 
-    // 3. Execution via Tenant Context
-    // Note: 'executeTenant' handles the schema switch automatically
+    // 2. Database Execution
+    // search_path handles schema isolation; no tenant_id column exists in the tenant schema.
     const result = await this.tenantDb
       .executeTenant(
         `INSERT INTO invoices (
-          tenant_id, 
-          invoice_number, 
-          customer_name, 
-          amount, 
-          status, 
-          external_id, 
+          invoice_number,
+          customer_name,
+          amount,
+          status,
+          external_id,
           is_encrypted,
           metadata
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *`,
         [
-          tenantId,
           encryptedInvoiceNumber,
           encryptedCustomer,
           dto.amount,
@@ -61,66 +58,63 @@ export class InvoicesService {
         throw err;
       });
 
-    return this.decryptInvoice(result[0], tenantSecret);
+    return this.decryptInvoice(result[0]);
   }
 
   async findAll(tenantId: string) {
-    // 🛡️ Defense-in-depth: Schema isolation + explicit tenant_id filter
     const rows = await this.tenantDb.executeTenant(
-      'SELECT * FROM invoices WHERE tenant_id = $1 ORDER BY created_at DESC',
-      [tenantId],
+      'SELECT * FROM invoices ORDER BY created_at DESC',
+      [],
     );
 
     if (!rows || rows.length === 0) return [];
 
-    const tenantSecret = await this.etlService.getTenantSecret(tenantId);
-    return rows.map((row) => this.decryptInvoice(row, tenantSecret));
+    return rows.map((row) => this.decryptInvoice(row));
   }
 
   async findOne(id: string, tenantId: string) {
-    const rows = await this.tenantDb.executeTenant(
-      'SELECT * FROM invoices WHERE id = $1 AND tenant_id = $2 LIMIT 1',
-      [id, tenantId],
-    );
+    const rows = await this.tenantDb.executeTenant('SELECT * FROM invoices WHERE id = $1 LIMIT 1', [
+      id,
+    ]);
 
     if (!rows || rows.length === 0) {
       throw new NotFoundException(`Invoice with ID ${id} not found`);
     }
 
-    const tenantSecret = await this.etlService.getTenantSecret(tenantId);
-    return this.decryptInvoice(rows[0], tenantSecret);
+    return this.decryptInvoice(rows[0]);
   }
 
   async update(id: string, tenantId: string, dto: UpdateInvoiceDto) {
     const result = await this.tenantDb.executeTenant(
-      `UPDATE invoices 
-       SET amount = COALESCE($1, amount), 
+      `UPDATE invoices
+       SET amount = COALESCE($1, amount),
            status = COALESCE($2, status)
-       WHERE id = $3 AND tenant_id = $4
+       WHERE id = $3
        RETURNING *`,
-      [dto.amount, dto.status, id, tenantId],
+      [dto.amount, dto.status, id],
     );
 
     if (!result || result.length === 0) {
       throw new NotFoundException(`Invoice not found or access denied.`);
     }
 
-    const tenantSecret = await this.etlService.getTenantSecret(tenantId);
-    return this.decryptInvoice(result[0], tenantSecret);
+    return this.decryptInvoice(result[0]);
   }
 
   /**
    * Field-Level Decryption Helper
+   * No longer requires 'secret' parameter as EncryptionService handles it.
    */
-  private decryptInvoice(row: any, secret: string) {
+  private decryptInvoice(row: any) {
     if (row.is_encrypted && row.customer_name) {
       try {
-        row.customer_name = this.encryptionService.decrypt(row.customer_name, secret);
+        row.customer_name = this.encryptionService.decrypt(row.customer_name);
         if (row.invoice_number) {
-          row.invoice_number = this.encryptionService.decrypt(row.invoice_number, secret);
+          row.invoice_number = this.encryptionService.decrypt(row.invoice_number);
         }
       } catch (err) {
-        this.logger.error(`Decryption failed for record ${row.id}`);
+        this.logger.error(`Decryption failed for record ${row.id}: ${err.message}`);
+        // Optionally: mark row as "corrupted" or keep encrypted value
       }
     }
     return row;
