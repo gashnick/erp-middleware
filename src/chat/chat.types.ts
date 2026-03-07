@@ -109,9 +109,8 @@ import { QueryResult } from './dynamic-query/dynamic-query-builder.service';
 export interface ContextBundle {
   kpiSummary: string;
   anomalySummary: string;
+  entityGraph: string; // ← add this
   entityRefs: string[];
   tokenCount: number;
-  // Raw query results passed to ResponseFormatterService to build charts/tables.
-  // Empty when the snapshot fallback was used instead of dynamic queries.
   queryResults: QueryResult[];
 }

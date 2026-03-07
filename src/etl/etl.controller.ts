@@ -21,6 +21,7 @@ import { TenantContextGuard } from '@common/guards/tenant-context.guard';
 import { getTenantContext } from '@common/context/tenant-context';
 import * as csv from 'csv-parse/sync';
 import 'multer';
+import { GraphBuilderService } from '../knowledgeGraph/graph-builder.service';
 
 @ApiTags('Connectors & ETL')
 @ApiBearerAuth()
@@ -32,6 +33,7 @@ export class EtlController {
   constructor(
     private readonly etlService: EtlService,
     private readonly quarantine: QuarantineService,
+    private readonly graphBuilder: GraphBuilderService,
   ) {}
 
   // ─────────────────────────────────────────────────────────────
@@ -85,6 +87,17 @@ export class EtlController {
           synced: result.synced,
           quarantined: result.quarantined,
         });
+
+        // Rebuild knowledge graph after any ETL upload — fire and forget.
+        // Contacts and expenses just changed so entity relationships need refresh.
+        // Non-fatal — a KG build failure never affects the ETL result.
+        this.graphBuilder
+          .buildForTenant(ctx.tenantId, ctx.schemaName)
+          .catch((err) =>
+            console.error(
+              `[KG] Post-ETL graph build failed for tenant ${ctx.tenantId}: ${err.message}`,
+            ),
+          );
       } catch (err) {
         this.jobs.set(jobId, {
           status: 'failed',
@@ -131,5 +144,19 @@ export class EtlController {
       data: result.data ?? [],
       total: result.total ?? 0,
     };
+  }
+
+  @Post('build-graph')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async buildGraph() {
+    const ctx = getTenantContext();
+    if (!ctx?.tenantId) throw new BadRequestException('Tenant context required');
+
+    // Fire and forget — client polls /connectors/jobs/:id if they need status
+    this.graphBuilder
+      .buildForTenant(ctx.tenantId, ctx.schemaName)
+      .catch((err) => console.error(`[KG] Manual graph build failed: ${err.message}`));
+
+    return { message: 'Knowledge graph build started' };
   }
 }

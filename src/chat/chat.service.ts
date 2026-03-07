@@ -69,6 +69,7 @@ export class ChatService {
     const systemPrompt = this.promptSvc.render(template, {
       kpiSummary: context.kpiSummary,
       anomalySummary: context.anomalySummary,
+      entityGraph: context.entityGraph || 'No specific entities identified for this question.',
       tenantId,
     });
 
