@@ -1,3 +1,8 @@
+// src/chat/chat.service.ts
+//
+// Orchestrates the full chat pipeline:
+//   guardrails → context build → prompt → LLM → output redaction → format → persist → audit
+
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { AuditLogService, AuditAction } from '@common/audit/audit-log.service';
 import { ipFromRequest, uaFromRequest } from '@common/audit/audit.helpers';
@@ -28,12 +33,10 @@ export class ChatService {
     private readonly audit: AuditLogService,
   ) {}
 
-  // 1. Removed tenantId param - sessionRepo pulls it from context
   async createSession(userId: string): Promise<ChatSession> {
     return this.sessionRepo.createSession(userId);
   }
 
-  // 2. Removed tenantId param
   async getSession(sessionId: string): Promise<ChatSession> {
     return this.sessionRepo.getSession(sessionId);
   }
@@ -45,39 +48,40 @@ export class ChatService {
     req: { ip?: string; headers?: Record<string, string | string[] | undefined> },
   ): Promise<ChatMessage> {
     const start = Date.now();
-    const ctx = getTenantContext(); // Grab context for auditing and logging
+    const ctx = getTenantContext();
     const tenantId = ctx?.tenantId || 'unknown';
 
-    // 3. Guardrails (tenantId removed - services use context)
+    // ── Guardrails ────────────────────────────────────────────────────────────
     await this.rateLimiter.enforce();
 
     if (this.profanity.contains(userText)) {
       throw new BadRequestException('Message contains disallowed content.');
     }
 
-    // 4. Redaction (tenantId removed)
+    // ── Input redaction ───────────────────────────────────────────────────────
     const { redacted: safeInput } = await this.redactor.redact(userText, userId, sessionId, req);
 
-    // 5. Context Building (tenantId removed)
+    // ── Context build — carries both formatted text and raw QueryResult[] ─────
     const context = await this.contextSvc.build(userId, safeInput, sessionId, req);
 
-    // 6. Prompting
+    // ── Prompt ────────────────────────────────────────────────────────────────
     const template = await this.promptSvc.getActive('finance_chat');
     const systemPrompt = this.promptSvc.render(template, {
       kpiSummary: context.kpiSummary,
       anomalySummary: context.anomalySummary,
-      tenantId, // Passed for rendering logic within the prompt text
+      tenantId,
     });
 
-    this.logger.debug(`SYSTEM PROMPT:\n${systemPrompt}`);
-    this.logger.debug(`USER INPUT: ${safeInput}`);
-    // 7. LLM Call
+    // this.logger.debug(`SYSTEM PROMPT:\n${systemPrompt}`);
+    // this.logger.debug(`USER INPUT: ${safeInput}`);
+
+    // ── LLM call ──────────────────────────────────────────────────────────────
     const llmResp = await this.llm.complete({
       systemPrompt,
       messages: [{ role: 'user', text: safeInput }],
     });
 
-    // 8. Output Redaction
+    // ── Output redaction ──────────────────────────────────────────────────────
     const { redacted: safeOutput } = await this.redactor.redact(
       llmResp.text,
       userId,
@@ -85,9 +89,10 @@ export class ChatService {
       req,
     );
 
-    const content = this.formatter.format(safeOutput, userText);
+    // ── Format — pass raw query results so formatter can build charts/tables ──
+    const content = this.formatter.format(safeOutput, userText, context.queryResults);
 
-    // 9. Persistence (tenantId removed from signature)
+    // ── Persist ───────────────────────────────────────────────────────────────
     const message = await this.sessionRepo.saveMessage({
       sessionId,
       role: 'assistant',
@@ -95,7 +100,7 @@ export class ChatService {
       latencyMs: Date.now() - start,
     });
 
-    // 10. Audit
+    // ── Audit — fire-and-forget ───────────────────────────────────────────────
     void this.audit
       .log({
         tenantId,
@@ -108,8 +113,10 @@ export class ChatService {
         metadata: {
           provider: llmResp.provider,
           model: llmResp.model,
-          PromptTemplateService: template.name,
+          promptTemplate: template.name,
           latencyMs: message.latencyMs,
+          contentType: content.type,
+          intentsUsed: context.queryResults.map((r) => r.intent),
         },
       })
       .catch(() => {});

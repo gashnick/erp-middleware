@@ -1,24 +1,31 @@
+// src/anomaly/anomaly.module.ts
+
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
 import { DatabaseModule } from '@database/database.module';
 import { AnalyticsModule } from '@analytics/analytics.module';
+import { AuditModule } from '@common/audit/audit.module';
 import { AnomalyService } from './anomaly.service';
 import { AnomalyRepository } from './anomaly.repository';
 import { AnomalyDetector } from './anomaly.detector';
+import { AnomalyProcessor } from './anomaly.processor';
 import { AnomalyResolver } from './anomaly.resolver';
 import { AnomalyController } from './anomaly.controller';
-import { AuditModule } from '@common/audit/audit.module';
-// AuditLogService is already registered in DatabaseModule or a shared module in your project
-// Import whichever module exports it — adjust the import to match your existing structure
 
 @Module({
   imports: [
-    DatabaseModule,
-    AnalyticsModule,
+    DatabaseModule, // TenantQueryRunnerService + DataSource
+    AnalyticsModule, // AnalyticsRepository
+    AuditModule, // AuditLogService
     BullModule.registerQueue({ name: 'anomaly-scan' }),
-    AuditModule,
   ],
-  providers: [AnomalyService, AnomalyRepository, AnomalyDetector, AnomalyResolver],
+  providers: [
+    AnomalyService,
+    AnomalyRepository,
+    AnomalyDetector,
+    AnomalyProcessor, // ← was missing — Bull never consumed jobs without this
+    AnomalyResolver,
+  ],
   controllers: [AnomalyController],
   exports: [AnomalyService],
 })

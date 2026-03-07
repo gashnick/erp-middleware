@@ -119,18 +119,26 @@ export class InitialTenantSchema1705000000000 {
 
       -- ── ETL quarantine ──────────────────────────────────────────────────────
 
+            -- 1. Create the table with the new column
       CREATE TABLE IF NOT EXISTS "quarantine_records" (
-        "id"          uuid      NOT NULL DEFAULT gen_random_uuid(),
-        "source_type" varchar   NOT NULL,
-        "raw_data"    jsonb     NOT NULL,
-        "errors"      jsonb     NOT NULL,
-        "status"      varchar   NOT NULL DEFAULT 'pending'
-                        CHECK ("status" IN ('pending','reviewed','dismissed')),
-        "created_at"  timestamp NOT NULL DEFAULT now(),
-        CONSTRAINT "PK_quarantine" PRIMARY KEY ("id")
+          "id"          uuid      NOT NULL DEFAULT gen_random_uuid(),
+          "entity_type" varchar   NOT NULL DEFAULT 'invalid_record', -- 🚀 Crucial for dynamic routing
+          "source_type" varchar   NOT NULL,
+          "raw_data"    jsonb     NOT NULL,
+          "errors"      jsonb     NOT NULL,
+          "status"      varchar   NOT NULL DEFAULT 'pending'
+                          CHECK ("status" IN ('pending', 'reviewed', 'dismissed')),
+          "created_at"  timestamp NOT NULL DEFAULT now(),
+          CONSTRAINT "PK_quarantine" PRIMARY KEY ("id")
       );
-      CREATE INDEX IF NOT EXISTS "IDX_QUARANTINE_STATUS"
-        ON "quarantine_records" ("status", "created_at");
+
+      -- 2. Add an index for status and entity filtering
+      -- This speeds up the "getQuarantine" dashboard queries
+      CREATE INDEX IF NOT EXISTS "IDX_QUARANTINE_LOOKUP" 
+        ON "quarantine_records" ("status", "entity_type", "created_at");
+
+      -- 3. (Optional) If the table already exists, run this migration:
+      -- ALTER TABLE "quarantine_records" ADD COLUMN IF NOT EXISTS "entity_type" varchar NOT NULL DEFAULT 'invoice';
 
       -- ── AI insights (polymorphic, target_entity names the table) ────────────
 

@@ -1,9 +1,19 @@
+// src/analytics/analytics.repository.ts
+//
+// Responsibility: read-only analytics queries.
+//
+// Methods that can be called from Bull workers accept an optional schemaName
+// parameter. When provided, it is passed to transaction({ schema }) to bypass
+// AsyncLocalStorage which does not propagate through Bull's async context.
+
 import { Injectable } from '@nestjs/common';
 import { TenantQueryRunnerService } from '@database/tenant-query-runner.service';
 import { MonthlyRevenue, ExpenseCategory, CashPosition } from './analytics.types';
 
 @Injectable()
 export class AnalyticsRepository {
+  // ── SQL constants ──────────────────────────────────────────────────────────
+
   private static readonly REVENUE_BY_MONTH_SQL = `
     SELECT
       EXTRACT(MONTH FROM invoice_date)::int AS month,
@@ -21,11 +31,11 @@ export class AnalyticsRepository {
     SELECT
       e.category,
       e.vendor_id   AS "vendorId",
-      v.name         AS "vendorName",
+      v.name        AS "vendorName",
       SUM(e.amount) AS total,
       e.currency
     FROM expenses e
-    JOIN contacts v ON v.id = e.vendor_id  -- Renamed 'vendors' to 'contacts' to match your migration
+    JOIN contacts v ON v.id = e.vendor_id
     WHERE e.expense_date BETWEEN $1 AND $2
     GROUP BY e.category, e.vendor_id, v.name, e.currency
     ORDER BY total DESC
@@ -45,8 +55,8 @@ export class AnalyticsRepository {
 
   private static readonly VENDOR_SPEND_HISTORY_SQL = `
     SELECT
-      e.vendor_id                           AS "vendorId",
-      v.name                                AS "vendorName",
+      e.vendor_id                             AS "vendorId",
+      v.name                                  AS "vendorName",
       EXTRACT(MONTH FROM e.expense_date)::int AS month,
       EXTRACT(YEAR  FROM e.expense_date)::int AS year,
       SUM(e.amount)                           AS spend
@@ -59,6 +69,8 @@ export class AnalyticsRepository {
   `;
 
   constructor(private readonly tenantDb: TenantQueryRunnerService) {}
+
+  // ── Queries ────────────────────────────────────────────────────────────────
 
   async getRevenueByMonth(year: number): Promise<MonthlyRevenue[]> {
     return this.tenantDb.transaction(async (runner) =>
@@ -79,14 +91,24 @@ export class AnalyticsRepository {
     });
   }
 
+  /**
+   * Vendor spend history used by anomaly spike detection.
+   *
+   * schemaName is optional — pass it when calling from a Bull worker where
+   * AsyncLocalStorage context is not available. HTTP-request callers leave
+   * it undefined and the context is resolved automatically.
+   */
   async getVendorSpendHistory(
     vendorId: string | null,
     lookbackMonths: number,
+    schemaName?: string,
   ): Promise<
     { vendorId: string; vendorName: string; month: number; year: number; spend: number }[]
   > {
-    return this.tenantDb.transaction(async (runner) =>
-      runner.query(AnalyticsRepository.VENDOR_SPEND_HISTORY_SQL, [vendorId, lookbackMonths]),
+    return this.tenantDb.transaction(
+      async (runner) =>
+        runner.query(AnalyticsRepository.VENDOR_SPEND_HISTORY_SQL, [vendorId, lookbackMonths]),
+      schemaName ? { schema: schemaName } : undefined,
     );
   }
 }

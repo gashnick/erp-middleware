@@ -19,7 +19,7 @@
     "noFallthroughCasesInSwitch": false,
     "allowJs": true,
     "esModuleInterop": true,
-    "types": ["node", "jest"],
+    "types": ["node", "jest", "Multer"],
     "paths": {
       "@config/*": ["src/config/*"],
       "@database/*": ["src/database/*"],

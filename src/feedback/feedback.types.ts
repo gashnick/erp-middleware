@@ -1,8 +1,9 @@
+// src/feedback/feedback.types.ts
+
 export type FeedbackRating = 'helpful' | 'not_helpful';
 
 export interface Feedback {
   id: string;
-  tenantId: string;
   userId: string;
   insightId: string;
   rating: FeedbackRating;

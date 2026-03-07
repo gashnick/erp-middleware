@@ -11,6 +11,9 @@ import {
   TransformResult,
 } from '../interfaces/tenant-entities.interface';
 
+// 🚀 Match the type from EtlService
+type EntityType = 'invoice' | 'contact' | 'expense' | 'bank_transaction' | 'product';
+
 @Injectable()
 export class EtlTransformerService {
   private readonly logger = new Logger(EtlTransformerService.name);
@@ -54,6 +57,15 @@ export class EtlTransformerService {
     overdue: 'overdue',
     void: 'void',
   };
+  private readonly CATEGORY_VENDOR_MAP: Record<string, string> = {
+    PAYROLL: 'Payroll Services',
+    INFRASTRUCTURE: 'Infrastructure Provider',
+    MARKETING: 'Marketing Services',
+    OFFICE: 'Office Expenses',
+    TRAVEL: 'Travel Expenses',
+    LEGAL: 'Legal Services',
+    SOFTWARE: 'Software & Subscriptions',
+  };
 
   constructor(private readonly encryptionService: EncryptionService) {}
 
@@ -77,7 +89,8 @@ export class EtlTransformerService {
 
       const errors = this.validateInvoice(normalized, i + 1);
       if (errors.length > 0) {
-        quarantine.push(this.makeQuarantine(source, row, errors));
+        // 🚀 Tag as 'invoice'
+        quarantine.push(this.makeQuarantine(source, row, errors, 'invoice'));
         return;
       }
 
@@ -97,7 +110,9 @@ export class EtlTransformerService {
           metadata: { source, sync_date: new Date().toISOString() },
         });
       } catch (e) {
-        quarantine.push(this.makeQuarantine(source, row, [`Encryption failed: ${e.message}`]));
+        quarantine.push(
+          this.makeQuarantine(source, row, [`Encryption failed: ${e.message}`], 'invoice'),
+        );
       }
     });
 
@@ -126,22 +141,15 @@ export class EtlTransformerService {
       if (!normalized.external_id) errors.push(`Row ${i + 1}: Missing external_id`);
       if (!normalized.name) errors.push(`Row ${i + 1}: Missing name`);
 
-      if (!this.VALID_CONTACT_TYPES.has(normalized.type)) {
-        this.logger.warn(
-          `Row ${i + 1}: Unknown contact type '${normalized.type}' — defaulting to 'other'`,
-        );
-        normalized.type = 'other';
-      }
-
       if (errors.length > 0) {
-        quarantine.push(this.makeQuarantine(source, row, errors));
+        quarantine.push(this.makeQuarantine(source, row, errors, 'contact'));
         return;
       }
 
       valid.push({
         external_id: String(normalized.external_id).trim(),
         name: String(normalized.name).trim(),
-        type: normalized.type,
+        type: this.VALID_CONTACT_TYPES.has(normalized.type) ? normalized.type : 'other',
         contact_info: normalized.contact_info,
       });
     });
@@ -156,34 +164,37 @@ export class EtlTransformerService {
     const quarantine: Partial<IQuarantineRecord>[] = [];
 
     rawData.forEach((row, i) => {
+      const category = (row.category ?? row.expense_category ?? 'OTHER')
+        .toString()
+        .toUpperCase()
+        .trim();
+
       const normalized = {
-        category: row.category ?? row.expense_category ?? 'OTHER',
+        category,
         amount: row.amount ?? row.total,
         currency: (row.currency ?? 'USD').toUpperCase(),
         expense_date: row.expense_date ?? row.date ?? row.expenseDate,
         description: row.description ?? row.notes,
+        vendorName: this.resolveVendorName(row, category), // ← new
       };
 
       const errors: string[] = [];
-      if (!normalized.category) errors.push(`Row ${i + 1}: Missing category`);
       if (!normalized.expense_date) errors.push(`Row ${i + 1}: Missing expense_date`);
-
       const amt = parseFloat(normalized.amount);
-      if (isNaN(amt) || amt < this.MIN_AMOUNT || amt > this.MAX_AMOUNT) {
-        errors.push(`Row ${i + 1}: Invalid amount '${normalized.amount}'`);
-      }
+      if (isNaN(amt) || amt < this.MIN_AMOUNT) errors.push(`Row ${i + 1}: Invalid amount`);
 
       if (errors.length > 0) {
-        quarantine.push(this.makeQuarantine(source, row, errors));
+        quarantine.push(this.makeQuarantine(source, row, errors, 'expense'));
         return;
       }
 
       valid.push({
-        category: String(normalized.category).toUpperCase().trim(),
+        category: normalized.category,
         amount: amt,
         currency: normalized.currency,
         expense_date: new Date(normalized.expense_date),
         description: normalized.description ? String(normalized.description).trim() : undefined,
+        vendorName: normalized.vendorName, // ← new — EtlService converts to vendor_id
         metadata: { source, sync_date: new Date().toISOString() },
       });
     });
@@ -209,19 +220,16 @@ export class EtlTransformerService {
 
       const errors: string[] = [];
       if (!['credit', 'debit'].includes(normalized.type)) {
-        errors.push(`Row ${i + 1}: type must be 'credit' or 'debit', got '${normalized.type}'`);
+        errors.push(`Row ${i + 1}: type must be 'credit' or 'debit'`);
       }
-      if (!normalized.transaction_date) {
-        errors.push(`Row ${i + 1}: Missing transaction_date`);
-      }
+      if (!normalized.transaction_date) errors.push(`Row ${i + 1}: Missing transaction_date`);
 
       const amt = parseFloat(normalized.amount);
-      if (isNaN(amt) || amt <= 0 || amt > this.MAX_AMOUNT) {
-        errors.push(`Row ${i + 1}: Invalid amount '${normalized.amount}'`);
-      }
+      if (isNaN(amt) || amt <= 0) errors.push(`Row ${i + 1}: Invalid amount`);
 
       if (errors.length > 0) {
-        quarantine.push(this.makeQuarantine(source, row, errors));
+        // 🚀 Tag as 'bank_transaction'
+        quarantine.push(this.makeQuarantine(source, row, errors, 'bank_transaction'));
         return;
       }
 
@@ -255,28 +263,17 @@ export class EtlTransformerService {
 
       const errors: string[] = [];
       if (!normalized.external_id) errors.push(`Row ${i + 1}: Missing external_id`);
-      if (!normalized.name) errors.push(`Row ${i + 1}: Missing name`);
-
-      const price = parseFloat(normalized.price);
-      if (isNaN(price) || price < 0) {
-        errors.push(`Row ${i + 1}: Invalid price '${normalized.price}'`);
-      }
-
-      const stock = parseInt(String(normalized.stock), 10);
-      if (isNaN(stock) || stock < 0) {
-        errors.push(`Row ${i + 1}: Invalid stock '${normalized.stock}'`);
-      }
 
       if (errors.length > 0) {
-        quarantine.push(this.makeQuarantine(source, row, errors));
+        quarantine.push(this.makeQuarantine(source, row, errors, 'product'));
         return;
       }
 
       valid.push({
         external_id: String(normalized.external_id).trim(),
         name: String(normalized.name).trim(),
-        price,
-        stock,
+        price: parseFloat(normalized.price) || 0,
+        stock: parseInt(String(normalized.stock), 10) || 0,
       });
     });
 
@@ -288,9 +285,7 @@ export class EtlTransformerService {
   private normalizeStatus(raw: string): string {
     if (!raw) return 'draft';
     const key = raw.toLowerCase().trim().replace(/\s+/g, '_');
-    const mapped = this.STATUS_MAP[key];
-    if (!mapped) this.logger.warn(`Unknown invoice status '${raw}' — defaulting to 'draft'`);
-    return mapped ?? 'draft';
+    return this.STATUS_MAP[key] ?? 'draft';
   }
 
   private validateInvoice(row: any, index: number): string[] {
@@ -298,20 +293,28 @@ export class EtlTransformerService {
     if (!row?.external_id) errors.push(`Row ${index}: Missing external_id`);
     if (!row?.customer_name) errors.push(`Row ${index}: Missing customer_name`);
     const amt = parseFloat(row?.amount);
-    if (isNaN(amt)) {
-      errors.push(`Row ${index}: Invalid amount format`);
-    } else if (amt < this.MIN_AMOUNT || amt > this.MAX_AMOUNT) {
-      errors.push(`Row ${index}: Amount out of range`);
+    if (isNaN(amt) || amt < this.MIN_AMOUNT || amt > this.MAX_AMOUNT) {
+      errors.push(`Row ${index}: Invalid amount`);
     }
     return errors;
   }
 
+  /**
+   * 🚀 Added entity_type to the quarantine object
+   */
   private makeQuarantine(
     source: string,
     raw_data: any,
     errors: string[],
+    entityType: EntityType,
   ): Partial<IQuarantineRecord> {
-    return { source_type: source, raw_data, errors, status: 'pending' as const };
+    return {
+      source_type: source,
+      raw_data,
+      errors,
+      status: 'pending' as const,
+      entity_type: entityType,
+    };
   }
 
   private parseJson(value: string): Record<string, any> | undefined {
@@ -320,5 +323,17 @@ export class EtlTransformerService {
     } catch {
       return undefined;
     }
+  }
+
+  /**
+   * Resolves vendor name — three-tier priority, no DB access:
+   *   1. Explicit vendor field in the CSV row
+   *   2. CATEGORY_VENDOR_MAP canonical name
+   *   3. Category name itself as fallback
+   */
+  private resolveVendorName(row: any, category: string): string {
+    const explicit = row.vendor ?? row.vendor_name ?? row.vendorName ?? row.supplier;
+    if (explicit && String(explicit).trim()) return String(explicit).trim();
+    return this.CATEGORY_VENDOR_MAP[category] ?? category;
   }
 }

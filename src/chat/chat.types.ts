@@ -1,4 +1,8 @@
+// src/chat/chat.types.ts
+
 export type MessageRole = 'user' | 'assistant' | 'system';
+
+// ── Message content variants ───────────────────────────────────────────────
 
 export interface TextContent {
   type: 'text';
@@ -26,11 +30,48 @@ export interface LinkContent {
 
 export type MessageContent = TextContent | ChartContent | TableContent | CsvContent | LinkContent;
 
+// ── Structured response envelope ───────────────────────────────────────────
+//
+// The AI always returns a text answer. Supplementary charts/tables/links are
+// derived from query data already in memory — no extra DB calls needed.
+
+export interface ChartSpec {
+  type: 'bar' | 'line' | 'area' | 'point';
+  title: string;
+  xField: string;
+  xLabel: string;
+  yField: string;
+  yLabel: string;
+  data: Record<string, unknown>[];
+}
+
+export interface TableSpec {
+  title: string;
+  headers: string[];
+  rows: (string | number | null)[][];
+}
+
+export interface LinkSpec {
+  label: string;
+  url: string;
+  description?: string;
+}
+
+export interface StructuredResponse {
+  text: string;
+  charts: ChartSpec[];
+  tables: TableSpec[];
+  links: LinkSpec[];
+}
+
+// ── Chat entities ──────────────────────────────────────────────────────────
+
 export interface ChatMessage {
   id: string;
   sessionId: string;
   role: MessageRole;
   content: MessageContent;
+  structured?: StructuredResponse;
   latencyMs?: number;
   createdAt: Date;
 }
@@ -58,9 +99,19 @@ export interface LLMResponse {
   latencyMs: number;
 }
 
+// ── Context bundle ─────────────────────────────────────────────────────────
+//
+// QueryResult is imported here to avoid a circular dependency — chat.types
+// imports from dynamic-query, not the other way around.
+
+import { QueryResult } from './dynamic-query/dynamic-query-builder.service';
+
 export interface ContextBundle {
   kpiSummary: string;
   anomalySummary: string;
   entityRefs: string[];
   tokenCount: number;
+  // Raw query results passed to ResponseFormatterService to build charts/tables.
+  // Empty when the snapshot fallback was used instead of dynamic queries.
+  queryResults: QueryResult[];
 }

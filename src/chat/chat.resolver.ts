@@ -35,7 +35,7 @@ export class ChatResolver {
   @Mutation(() => ChatSessionModel)
   createChatSession(@Context() ctx: GraphQLContext) {
     const user = ctx.req.user;
-    console.log('🔍 CREATE SESSION USER:', JSON.stringify(ctx.req.user));
+    //console.log('🔍 CREATE SESSION USER:', JSON.stringify(ctx.req.user));
     return runWithTenantContext(
       {
         tenantId: user.tenantId,

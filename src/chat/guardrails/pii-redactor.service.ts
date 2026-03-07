@@ -65,9 +65,9 @@ export class PiiRedactorService {
     const ctx = getTenantContext();
     const tenantId = ctx?.tenantId || 'unknown';
 
-    console.log(
-      `PII Redactor - tenantId: ${tenantId}, userId: ${userId}, sessionId: ${sessionId}, schemaName: ${ctx.schemaName}`,
-    );
+    // console.log(
+    //   `PII Redactor - tenantId: ${tenantId}, userId: ${userId}, sessionId: ${sessionId}, schemaName: ${ctx.schemaName}`,
+    // );
 
     let redacted = text;
     const detectedTypes: string[] = [];

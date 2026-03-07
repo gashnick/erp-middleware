@@ -17,11 +17,19 @@ import { PiiRedactorService } from './guardrails/pii-redactor.service';
 import { ProfanityFilterService } from './guardrails/profanity-filter.service';
 import { RateLimiterService } from './guardrails/rate-limiter.service';
 import { AuditModule } from '@common/audit/audit.module';
+import { DynamicQueryModule } from './dynamic-query/dynamic-query.module';
 
 // DatabaseModule exports TenantQueryRunnerService — needed by RateLimiterService
 // for tenant tier lookup and by ChatSessionRepository, PromptTemplateService.
 @Module({
-  imports: [DatabaseModule, AnalyticsModule, AnomalyModule, KnowledgeGraphModule, AuditModule],
+  imports: [
+    DatabaseModule,
+    AnalyticsModule,
+    AnomalyModule,
+    KnowledgeGraphModule,
+    AuditModule,
+    DynamicQueryModule,
+  ],
   providers: [
     ChatService,
     ChatSessionRepository,

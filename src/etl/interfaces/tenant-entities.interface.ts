@@ -38,6 +38,7 @@ export interface IExpense extends BaseTenantEntity {
   currency: string;
   expense_date: Date;
   description?: string;
+  vendorName?: string;
   metadata?: Record<string, any>;
 }
 
@@ -60,6 +61,7 @@ export interface IProduct extends BaseTenantEntity {
 
 export interface IQuarantineRecord extends BaseTenantEntity {
   source_type: string;
+  entity_type: 'invoice' | 'contact' | 'expense' | 'bank_transaction' | 'product';
   raw_data: any;
   errors: any;
   status: 'pending' | 'resolved' | 'ignored';

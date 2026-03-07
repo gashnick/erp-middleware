@@ -71,12 +71,12 @@ export class TenantGuard implements CanActivate {
       };
     }
 
-    console.log('🔍 TenantGuard Debug:', {
-      hasUser: !!user,
-      userTenant: userTenantId,
-      type: context.getType(),
-      contextSource: hasTenantContext() ? 'AsyncLocalStorage' : 'JWT',
-    });
+    // console.log('🔍 TenantGuard Debug:', {
+    //   hasUser: !!user,
+    //   userTenant: userTenantId,
+    //   type: context.getType(),
+    //   contextSource: hasTenantContext() ? 'AsyncLocalStorage' : 'JWT',
+    // });
 
     return true;
   }

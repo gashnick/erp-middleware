@@ -1,3 +1,11 @@
+// src/anomaly/anomaly.detector.ts
+//
+// Responsibility: pure statistical detection — no DB access, no side effects.
+//
+// Important: PostgreSQL numeric aggregates (SUM, AVG) are returned as strings
+// by the Node.js pg driver. All incoming numeric fields must be cast with
+// Number() before arithmetic to prevent NaN propagation through mean/stddev/z-score.
+
 import { Injectable } from '@nestjs/common';
 import { AnomalyCandidate, VendorSpend, DuplicateCandidate, PaymentRecord } from './anomaly.types';
 
@@ -42,7 +50,11 @@ export class AnomalyDetector {
     const anomalies: AnomalyCandidate[] = [];
     for (const [vendorId, spends] of byVendor) {
       if (spends.length < 3) continue;
-      const amounts = spends.map((s) => s.spend);
+
+      // Cast to Number — PostgreSQL SUM() returns strings via the pg driver.
+      // Without this, all arithmetic produces NaN which fails the DB check constraint.
+      const amounts = spends.map((s) => Number(s.spend));
+
       const latest = amounts[amounts.length - 1];
       const history = amounts.slice(0, -1);
       const avg = this.mean(history);
@@ -52,6 +64,7 @@ export class AnomalyDetector {
 
       const pctAbove = avg > 0 ? Math.round(((latest - avg) / avg) * 100) : 0;
       const vendorName = spends[spends.length - 1].vendorName;
+
       anomalies.push({
         tenantId,
         type: 'EXPENSE_SPIKE',
@@ -81,20 +94,28 @@ export class AnomalyDetector {
 
   detectUnusualPayments(tenantId: string, payments: PaymentRecord[]): AnomalyCandidate[] {
     if (payments.length < 10) return [];
-    const { upper: amtCeil } = this.iqrBounds(payments.map((p) => p.amount));
-    const { lower: hrLow, upper: hrHigh } = this.iqrBounds(payments.map((p) => p.hour));
+
+    // Cast to Number — pg driver returns numeric columns as strings
+    const amounts = payments.map((p) => Number(p.amount));
+    const hours = payments.map((p) => Number(p.hour));
+
+    const { upper: amtCeil } = this.iqrBounds(amounts);
+    const { lower: hrLow, upper: hrHigh } = this.iqrBounds(hours);
 
     return payments.flatMap((p) => {
-      const amountFlag = p.amount > amtCeil;
-      const hourFlag = p.hour < hrLow || p.hour > hrHigh;
+      const amount = Number(p.amount);
+      const hour = Number(p.hour);
+
+      const amountFlag = amount > amtCeil;
+      const hourFlag = hour < hrLow || hour > hrHigh;
       if (!amountFlag && !hourFlag) return [];
 
       const reasons: string[] = [];
       if (amountFlag)
-        reasons.push(`amount $${p.amount.toFixed(2)} exceeds IQR ceiling $${amtCeil.toFixed(2)}`);
+        reasons.push(`amount $${amount.toFixed(2)} exceeds IQR ceiling $${amtCeil.toFixed(2)}`);
       if (hourFlag)
         reasons.push(
-          `processed at hour ${p.hour} (normal window ${Math.round(hrLow)}–${Math.round(hrHigh)})`,
+          `processed at hour ${hour} (normal window ${Math.round(hrLow)}–${Math.round(hrHigh)})`,
         );
 
       return [

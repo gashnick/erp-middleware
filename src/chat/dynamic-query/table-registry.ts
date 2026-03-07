@@ -1,4 +1,4 @@
-// src/ai/dynamic-query/table-registry.ts
+// src/chat/dynamic-query/table-registry.ts
 //
 // Single source of truth for every table the AI engine is allowed to query.
 // Nothing outside this file decides what tables or columns are accessible.

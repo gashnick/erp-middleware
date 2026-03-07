@@ -106,7 +106,7 @@
                   "const r = pm.response.json();",
                   "if (r.auth?.accessToken)  pm.collectionVariables.set('tenantToken',  r.auth.accessToken);",
                   "if (r.auth?.refreshToken) pm.collectionVariables.set('refreshToken', r.auth.refreshToken);",
-                  "if (r.tenantId)           pm.collectionVariables.set('tenantId',     r.tenantId);"
+                  "if (r.tenantId)           pm.collectionVariables.set('tenantId',      r.tenantId);"
                 ]
               }
             }
@@ -210,7 +210,7 @@
       ]
     },
     {
-      "name": "CSV Upload",
+      "name": "Connectors & ETL",
       "item": [
         {
           "name": "Upload CSV",
@@ -231,8 +231,13 @@
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "file", "type": "file", "src": "/path/to/invoices.csv" },
-                { "key": "entityType", "type": "text", "value": "invoice" }
+                { "key": "file", "type": "file", "src": "" },
+                {
+                  "key": "entityType",
+                  "type": "text",
+                  "value": "bank_transaction",
+                  "description": "Options: invoice, bank_transaction, expense, contact, product"
+                }
               ]
             },
             "url": {
@@ -342,15 +347,60 @@
       "name": "Insights (Anomalies) — REST",
       "item": [
         {
-          "name": "List Insights",
+          "name": "1. Trigger Anomaly Scan",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
+                  "// Scan is async — job is enqueued and processed in background.",
+                  "// The next request (List Insights) should be run manually after",
+                  "// a few seconds, or use the Postman Collection Runner with a",
+                  "// delay set between requests.",
+                  "pm.test('Scan enqueued', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.jobId).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "" },
+            "url": {
+              "raw": "{{baseUrl}}/insights/scan",
+              "host": ["{{baseUrl}}"],
+              "path": ["insights", "scan"]
+            }
+          }
+        },
+        {
+          "name": "2. List Insights",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns array', () => pm.response.to.have.status(200));",
+                  "",
                   "const r = pm.response.json();",
                   "const list = Array.isArray(r) ? r : (r.data ?? []);",
-                  "if (list.length) pm.collectionVariables.set('insightId', list[0].id);"
+                  "",
+                  "pm.test('At least one anomaly detected', () => {",
+                  "  pm.expect(list.length).to.be.greaterThan(0);",
+                  "});",
+                  "",
+                  "// Save first anomaly ID for subsequent requests",
+                  "if (list.length) {",
+                  "  pm.collectionVariables.set('insightId', list[0].id);",
+                  "  console.log('insightId set to:', list[0].id);",
+                  "}"
                 ]
               }
             }
@@ -370,7 +420,21 @@
           }
         },
         {
-          "name": "Get Insight",
+          "name": "3. Get Insight",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns single anomaly', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.id).to.eql(pm.collectionVariables.get('insightId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
@@ -382,20 +446,33 @@
           }
         },
         {
-          "name": "Trigger Anomaly Scan",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
-            "body": { "mode": "raw", "raw": "" },
-            "url": {
-              "raw": "{{baseUrl}}/insights/scan",
-              "host": ["{{baseUrl}}"],
-              "path": ["insights", "scan"]
+          "name": "4. Submit Insight Feedback",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Guard — abort if insightId was never set by List Insights",
+                  "const id = pm.collectionVariables.get('insightId');",
+                  "if (!id) throw new Error('insightId not set — run List Insights first');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Feedback created', () => {",
+                  "  pm.response.to.have.status(201);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.id).to.exist;",
+                  "  pm.expect(r.rating).to.eql('helpful');",
+                  "  pm.expect(r.insightId).to.eql(pm.collectionVariables.get('insightId'));",
+                  "});"
+                ]
+              }
             }
-          }
-        },
-        {
-          "name": "Submit Insight Feedback",
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -555,22 +632,6 @@
             },
             "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
           }
-        },
-        {
-          "name": "Subscribe — Anomaly Raised (WebSocket only)",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"query\": \"subscription {\\n  anomalyRaised {\\n    id\\n    type\\n    score\\n    confidence\\n    explanation\\n    relatedIds\\n    detectedAt\\n  }\\n}\"\n}"
-            },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
-          }
         }
       ]
     },
@@ -645,22 +706,6 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"query\": \"mutation SendMessage($sessionId: ID!, $text: String!) {\\n  sendMessage(sessionId: $sessionId, text: $text) {\\n    id\\n    sessionId\\n    role\\n    content\\n    latencyMs\\n    createdAt\\n  }\\n}\",\n  \"variables\": {\n    \"sessionId\": \"{{sessionId}}\",\n    \"text\": \"What is our current cash position and any unusual expenses this month?\"\n  }\n}"
-            },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
-          }
-        },
-        {
-          "name": "Subscribe — Message Stream (WebSocket only)",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"query\": \"subscription MessageStream($sessionId: ID!) {\\n  messageStream(sessionId: $sessionId) {\\n    id\\n    sessionId\\n    role\\n    content\\n    latencyMs\\n    createdAt\\n  }\\n}\",\n  \"variables\": { \"sessionId\": \"{{sessionId}}\" }\n}"
             },
             "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
           }

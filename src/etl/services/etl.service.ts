@@ -1,4 +1,3 @@
-// src/etl/services/etl.service.ts
 import {
   BadRequestException,
   Injectable,
@@ -56,17 +55,15 @@ export class EtlService {
         if (!connector) throw new BadRequestException('Connector not found');
 
         const rawData = await this.fetchFromProvider(connector);
-        const syncResult = await this.executeBatch(tenantId, rawData, connector.type, 'invoice');
+        const entityType: EntityType = connector.entity_type || 'invoice';
+
+        const syncResult = await this.executeBatch(tenantId, rawData, connector.type, entityType);
         await this.connectorHealth.handleSyncSuccess(connectorId);
         return syncResult;
       },
     );
   }
 
-  /**
-   * Main entry point for CSV uploads and manual ingestion.
-   * entityType determines which transformer + upsert path is used.
-   */
   async runEtl(
     tenantId: string,
     rawData: any[],
@@ -82,7 +79,6 @@ export class EtlService {
     );
   }
 
-  /** Backwards-compatible alias used by existing CSV upload controller */
   async runInvoiceEtl(tenantId: string, rawData: any[], source: string): Promise<SyncResult> {
     return this.runEtl(tenantId, rawData, source, 'invoice');
   }
@@ -94,21 +90,18 @@ export class EtlService {
     const record = await this.quarantine.findById(recordId);
     if (!record) throw new NotFoundException('Quarantine record not found');
 
-    const { valid, quarantine } = this.transformer.transformInvoices(
-      [fixedData],
-      tenantId,
-      record.source_type,
-    );
+    const entityType: EntityType = (record as any).entity_type as EntityType;
+    if (!entityType) {
+      throw new BadRequestException('Quarantine record is missing entity_type. Cannot retry.');
+    }
+    const result = await this.runEtl(tenantId, [fixedData], record.source_type, entityType);
 
-    if (quarantine.length > 0) {
-      throw new BadRequestException({ message: 'Validation failed', errors: quarantine[0].errors });
+    if (result.quarantined > 0) {
+      throw new BadRequestException('Validation failed during retry.');
     }
 
-    return this.tenantDb.transaction(async (runner) => {
-      await this.upsertInvoices(runner, valid);
-      await runner.query(`DELETE FROM quarantine_records WHERE id = $1`, [recordId]);
-      return { success: true };
-    });
+    await this.tenantDb.executeTenant(`DELETE FROM quarantine_records WHERE id = $1`, [recordId]);
+    return { success: true };
   }
 
   // ── Internal batch execution ───────────────────────────────────────────────
@@ -137,63 +130,51 @@ export class EtlService {
     entityType: EntityType,
   ): Promise<SyncResult> {
     return this.tenantDb.transaction(async (runner) => {
-      let synced = 0;
-      let quarantined = 0;
+      const handlers: Record<EntityType, () => Promise<{ valid: any[]; quarantine: any[] }>> = {
+        invoice: async () => this.transformer.transformInvoices(data, tenantId, source),
+        contact: async () => this.transformer.transformContacts(data, source),
+        expense: async () => this.transformer.transformExpenses(data, source),
+        bank_transaction: async () => this.transformer.transformBankTransactions(data, source),
+        product: async () => this.transformer.transformProducts(data, source),
+      };
 
-      switch (entityType) {
-        case 'invoice': {
-          const { valid, quarantine } = this.transformer.transformInvoices(data, tenantId, source);
-          if (valid.length > 0) await this.upsertInvoices(runner, valid);
-          if (quarantine.length > 0) await this.insertQuarantine(runner, quarantine);
-          synced = valid.length;
-          quarantined = quarantine.length;
-          break;
-        }
-        case 'contact': {
-          const { valid, quarantine } = this.transformer.transformContacts(data, source);
-          if (valid.length > 0) await this.upsertContacts(runner, valid);
-          if (quarantine.length > 0) await this.insertQuarantine(runner, quarantine);
-          synced = valid.length;
-          quarantined = quarantine.length;
-          break;
-        }
-        case 'expense': {
-          const { valid, quarantine } = this.transformer.transformExpenses(data, source);
-          if (valid.length > 0) await this.insertExpenses(runner, valid);
-          if (quarantine.length > 0) await this.insertQuarantine(runner, quarantine);
-          synced = valid.length;
-          quarantined = quarantine.length;
-          break;
-        }
-        case 'bank_transaction': {
-          const { valid, quarantine } = this.transformer.transformBankTransactions(data, source);
-          if (valid.length > 0) await this.insertBankTransactions(runner, valid);
-          if (quarantine.length > 0) await this.insertQuarantine(runner, quarantine);
-          synced = valid.length;
-          quarantined = quarantine.length;
-          break;
-        }
-        case 'product': {
-          const { valid, quarantine } = this.transformer.transformProducts(data, source);
-          if (valid.length > 0) await this.upsertProducts(runner, valid);
-          if (quarantine.length > 0) await this.insertQuarantine(runner, quarantine);
-          synced = valid.length;
-          quarantined = quarantine.length;
-          break;
-        }
-        default:
-          throw new BadRequestException(`Unsupported entityType: ${entityType}`);
+      const handler = handlers[entityType];
+      if (!handler) throw new BadRequestException(`Unsupported entityType: ${entityType}`);
+
+      const { valid, quarantine } = await handler();
+
+      if (valid.length > 0) {
+        await this.upsertByEntity(runner, entityType, valid);
+      }
+
+      if (quarantine.length > 0) {
+        await this.insertQuarantine(runner, quarantine, entityType);
       }
 
       this.logger.log(
-        `ETL [${entityType}] source=${source} total=${data.length} synced=${synced} quarantined=${quarantined}`,
+        `ETL [${entityType}] source=${source} total=${data.length} synced=${valid.length} quarantined=${quarantine.length}`,
       );
 
-      return { total: data.length, synced, quarantined };
+      return { total: data.length, synced: valid.length, quarantined: quarantine.length };
     });
   }
 
-  // ── Upsert / Insert helpers ────────────────────────────────────────────────
+  private async upsertByEntity(runner: QueryRunner, type: EntityType, data: any[]) {
+    switch (type) {
+      case 'invoice':
+        return this.upsertInvoices(runner, data);
+      case 'contact':
+        return this.upsertContacts(runner, data);
+      case 'expense':
+        return this.insertExpenses(runner, data);
+      case 'bank_transaction':
+        return this.insertBankTransactions(runner, data);
+      case 'product':
+        return this.upsertProducts(runner, data);
+    }
+  }
+
+  // ── Restored SQL Helpers ──────────────────────────────────────────────────
 
   private async upsertInvoices(runner: QueryRunner, invoices: IInvoice[]) {
     const params = invoices.flatMap((inv) => [
@@ -208,7 +189,6 @@ export class EtlService {
       inv.is_encrypted,
       JSON.stringify(inv.metadata ?? {}),
     ]);
-
     const placeholders = invoices
       .map((_, i) => {
         const b = i * 10;
@@ -217,17 +197,11 @@ export class EtlService {
       .join(', ');
 
     await runner.query(
-      `INSERT INTO invoices
-         (external_id, customer_name, invoice_number, amount, status, currency, invoice_date, due_date, is_encrypted, metadata)
+      `INSERT INTO invoices (external_id, customer_name, invoice_number, amount, status, currency, invoice_date, due_date, is_encrypted, metadata)
        VALUES ${placeholders}
        ON CONFLICT (external_id) DO UPDATE SET
-         amount        = EXCLUDED.amount,
-         status        = EXCLUDED.status,
-         customer_name = EXCLUDED.customer_name,
-         currency      = EXCLUDED.currency,
-         invoice_date  = EXCLUDED.invoice_date,
-         due_date      = EXCLUDED.due_date,
-         metadata      = EXCLUDED.metadata`,
+       amount = EXCLUDED.amount, status = EXCLUDED.status, customer_name = EXCLUDED.customer_name,
+       currency = EXCLUDED.currency, invoice_date = EXCLUDED.invoice_date, due_date = EXCLUDED.due_date, metadata = EXCLUDED.metadata`,
       params,
     );
   }
@@ -239,45 +213,67 @@ export class EtlService {
       c.type,
       c.contact_info ? JSON.stringify(c.contact_info) : null,
     ]);
-
     const placeholders = contacts
-      .map((_, i) => {
-        const b = i * 4;
-        return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}::jsonb)`;
-      })
+      .map((_, i) => `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4}::jsonb)`)
       .join(', ');
-
     await runner.query(
-      `INSERT INTO contacts (external_id, name, type, contact_info)
-       VALUES ${placeholders}
-       ON CONFLICT (external_id) DO UPDATE SET
-         name         = EXCLUDED.name,
-         type         = EXCLUDED.type,
-         contact_info = EXCLUDED.contact_info`,
+      `INSERT INTO contacts (external_id, name, type, contact_info) VALUES ${placeholders}
+       ON CONFLICT (external_id) DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type, contact_info = EXCLUDED.contact_info`,
       params,
     );
   }
 
+  /**
+   * Inserts expenses with vendor linking.
+   *
+   * Pipeline (runs inside the parent transaction — atomic with the batch):
+   *   1. Collect unique vendorNames from the batch
+   *   2. Upsert each vendor into contacts once (external_id = 'vendor-{slug}')
+   *   3. Insert all expenses with vendor_id populated
+   */
   private async insertExpenses(runner: QueryRunner, expenses: IExpense[]) {
+    // Step 1 — unique vendor names in this batch
+    const uniqueVendorNames = [
+      ...new Set(expenses.map((e) => (e as any).vendorName).filter(Boolean)),
+    ] as string[];
+
+    // Step 2 — upsert each vendor into contacts, collect name → id mapping
+    const vendorIdMap = new Map<string, string>();
+    for (const vendorName of uniqueVendorNames) {
+      // Stable external_id from name — prevents duplicate contacts on re-upload
+      const externalId = `vendor-${vendorName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+      const rows = await runner.query(
+        `INSERT INTO contacts (external_id, name, type)
+       VALUES ($1, $2, 'vendor')
+       ON CONFLICT (external_id) DO UPDATE SET name = EXCLUDED.name
+       RETURNING id`,
+        [externalId, vendorName],
+      );
+      if (rows[0]?.id) {
+        vendorIdMap.set(vendorName, rows[0].id);
+        this.logger.debug(`Vendor resolved: "${vendorName}" → ${rows[0].id}`);
+      }
+    }
+
+    // Step 3 — insert expenses with vendor_id linked
     const params = expenses.flatMap((e) => [
       e.category,
+      (e as any).vendorName ? (vendorIdMap.get((e as any).vendorName) ?? null) : null,
       e.amount,
       e.currency,
       e.expense_date,
       e.description ?? null,
       JSON.stringify(e.metadata ?? {}),
     ]);
-
     const placeholders = expenses
       .map((_, i) => {
-        const b = i * 6;
-        return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6}::jsonb)`;
+        const b = i * 7;
+        return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6}, $${b + 7}::jsonb)`;
       })
       .join(', ');
-
     await runner.query(
-      `INSERT INTO expenses (category, amount, currency, expense_date, description, metadata)
-       VALUES ${placeholders}`,
+      `INSERT INTO expenses (category, vendor_id, amount, currency, expense_date, description, metadata)
+     VALUES ${placeholders}`,
       params,
     );
   }
@@ -292,64 +288,51 @@ export class EtlService {
       t.reference ?? null,
       JSON.stringify(t.metadata ?? {}),
     ]);
-
     const placeholders = txns
-      .map((_, i) => {
-        const b = i * 7;
-        return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6}, $${b + 7}::jsonb)`;
-      })
+      .map(
+        (_, i) =>
+          `($${i * 7 + 1}, $${i * 7 + 2}, $${i * 7 + 3}, $${i * 7 + 4}, $${i * 7 + 5}, $${i * 7 + 6}, $${i * 7 + 7}::jsonb)`,
+      )
       .join(', ');
-
     await runner.query(
-      `INSERT INTO bank_transactions
-         (type, amount, currency, transaction_date, description, reference, metadata)
-       VALUES ${placeholders}`,
+      `INSERT INTO bank_transactions (type, amount, currency, transaction_date, description, reference, metadata) VALUES ${placeholders}`,
       params,
     );
   }
 
   private async upsertProducts(runner: QueryRunner, products: IProduct[]) {
     const params = products.flatMap((p) => [p.external_id, p.name, p.price, p.stock]);
-
     const placeholders = products
-      .map((_, i) => {
-        const b = i * 4;
-        return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4})`;
-      })
+      .map((_, i) => `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`)
       .join(', ');
-
     await runner.query(
-      `INSERT INTO products (external_id, name, price, stock)
-       VALUES ${placeholders}
-       ON CONFLICT (external_id) DO UPDATE SET
-         name  = EXCLUDED.name,
-         price = EXCLUDED.price,
-         stock = EXCLUDED.stock`,
+      `INSERT INTO products (external_id, name, price, stock) VALUES ${placeholders}
+       ON CONFLICT (external_id) DO UPDATE SET name = EXCLUDED.name, price = EXCLUDED.price, stock = EXCLUDED.stock`,
       params,
     );
   }
 
-  private async insertQuarantine(runner: QueryRunner, records: any[]) {
+  private async insertQuarantine(runner: QueryRunner, records: any[], entityType: EntityType) {
     const params = records.flatMap((r) => [
       r.source_type,
       JSON.stringify(r.raw_data),
       JSON.stringify(r.errors),
       r.status || 'pending',
+      entityType,
     ]);
     const placeholders = records
-      .map((_, i) => {
-        const b = i * 4;
-        return `($${b + 1}, $${b + 2}::jsonb, $${b + 3}::jsonb, $${b + 4})`;
-      })
+      .map(
+        (_, i) =>
+          `($${i * 5 + 1}, $${i * 5 + 2}::jsonb, $${i * 5 + 3}::jsonb, $${i * 5 + 4}, $${i * 5 + 5})`,
+      )
       .join(', ');
     await runner.query(
-      `INSERT INTO quarantine_records (source_type, raw_data, errors, status)
-       VALUES ${placeholders}`,
+      `INSERT INTO quarantine_records (source_type, raw_data, errors, status, entity_type) VALUES ${placeholders}`,
       params,
     );
   }
 
   private async fetchFromProvider(_connector: any): Promise<any[]> {
-    return []; // Placeholder — implemented per connector type
+    return []; // Placeholder logic
   }
 }

@@ -1,7 +1,6 @@
 import {
   Controller,
   Post,
-  Body,
   UseGuards,
   Get,
   Param,
@@ -9,18 +8,24 @@ import {
   HttpStatus,
   BadRequestException,
   NotFoundException,
+  UploadedFile,
+  UseInterceptors,
+  Body,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { EtlService } from './services/etl.service';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { EtlService, EntityType } from './services/etl.service';
 import { QuarantineService } from './services/quarantine.service';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { TenantContextGuard } from '@common/guards/tenant-context.guard';
 import { getTenantContext } from '@common/context/tenant-context';
+import * as csv from 'csv-parse/sync';
+import 'multer';
 
-@ApiTags('ETL')
+@ApiTags('Connectors & ETL')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, TenantContextGuard)
-@Controller('etl')
+@Controller('connectors')
 export class EtlController {
   private readonly jobs = new Map<string, any>();
 
@@ -29,36 +34,76 @@ export class EtlController {
     private readonly quarantine: QuarantineService,
   ) {}
 
-  @Post('ingest')
+  // ─────────────────────────────────────────────────────────────
+  // CSV Upload Endpoint
+  // POST /connectors/csv-upload
+  // ─────────────────────────────────────────────────────────────
+
+  @Post('csv-upload')
   @HttpCode(HttpStatus.CREATED)
-  async ingest(@Body() body: { source: string; entityType: string; records: any[] }) {
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadCsv(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('entityType') entityType: EntityType,
+  ) {
     const ctx = getTenantContext();
     if (!ctx?.tenantId) throw new BadRequestException('Tenant context required');
 
-    const jobId = `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    this.jobs.set(jobId, { status: 'processing', totalRecords: body.records?.length ?? 0 });
+    if (!file) throw new BadRequestException('CSV file is required');
+    if (!entityType)
+      throw new BadRequestException(
+        'entityType is required. Must be one of: invoice, contact, expense, bank_transaction, product',
+      );
 
-    // Run ETL in background
+    const jobId = `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    this.jobs.set(jobId, {
+      status: 'processing',
+      entityType,
+      filename: file.originalname,
+    });
+
     (async () => {
       try {
-        const tenantId = ctx.tenantId!; // already validated above
-        const result = await this.etlService.runInvoiceEtl(
-          tenantId,
-          body.records || [],
-          body.source || 'csv_upload',
+        const records = csv.parse(file.buffer, {
+          columns: true,
+          skip_empty_lines: true,
+          trim: true,
+        });
+        if (!ctx.tenantId) throw new BadRequestException('Tenant context required');
+        const result = await this.etlService.runEtl(
+          ctx.tenantId,
+          records,
+          'csv_upload',
+          entityType,
         );
+
         this.jobs.set(jobId, {
           status: 'completed',
-          totalRecords: result.total || body.records.length,
-          result,
+          total: result.total,
+          synced: result.synced,
+          quarantined: result.quarantined,
         });
       } catch (err) {
-        this.jobs.set(jobId, { status: 'failed', error: err.message });
+        this.jobs.set(jobId, {
+          status: 'failed',
+          error: err.message,
+        });
       }
     })();
 
-    return { jobId, status: 'processing', totalRecords: body.records?.length ?? 0 };
+    return {
+      jobId,
+      status: 'processing',
+      message: 'CSV upload started',
+    };
   }
+
+  // ─────────────────────────────────────────────────────────────
+  // Job Status Endpoint
+  // GET /connectors/jobs/:id
+  // ─────────────────────────────────────────────────────────────
 
   @Get('jobs/:id')
   async getJob(@Param('id') id: string) {
@@ -67,11 +112,24 @@ export class EtlController {
     return job;
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // Quarantine Records
+  // GET /connectors/quarantine
+  // ─────────────────────────────────────────────────────────────
+
   @Get('quarantine')
   async getQuarantine() {
     const ctx = getTenantContext();
     if (!ctx?.tenantId) throw new BadRequestException('Tenant context required');
-    const result = await this.quarantine.getPaginated(ctx.tenantId, {} as any);
-    return { data: result.data ?? [], total: result.total ?? 0 };
+
+    const result = await this.quarantine.getPaginated(ctx.tenantId, {
+      limit: 50,
+      offset: 0,
+    } as any);
+
+    return {
+      data: result.data ?? [],
+      total: result.total ?? 0,
+    };
   }
 }
