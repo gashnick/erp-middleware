@@ -1,7 +1,7 @@
 // src/chat/chat.service.ts
 //
 // Orchestrates the full chat pipeline:
-//   guardrails → context build → prompt → LLM → output redaction → format → persist → audit
+//   guardrails → context build → prompt → LLM → output redaction → validation → format → persist → audit
 
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { AuditLogService, AuditAction } from '@common/audit/audit-log.service';
@@ -11,6 +11,7 @@ import { LLMClientFactory } from './llm/llm-client.factory';
 import { ContextBuilderService } from './context-builder.service';
 import { PromptTemplateService } from './prompt-template.service';
 import { ResponseFormatterService } from './response-formatter.service';
+import { ResponseValidatorService } from './guardrails/response-validator.service';
 import { PiiRedactorService } from './guardrails/pii-redactor.service';
 import { ProfanityFilterService } from './guardrails/profanity-filter.service';
 import { RateLimiterService } from './guardrails/rate-limiter.service';
@@ -27,6 +28,7 @@ export class ChatService {
     private readonly contextSvc: ContextBuilderService,
     private readonly promptSvc: PromptTemplateService,
     private readonly formatter: ResponseFormatterService,
+    private readonly validator: ResponseValidatorService,
     private readonly redactor: PiiRedactorService,
     private readonly profanity: ProfanityFilterService,
     private readonly rateLimiter: RateLimiterService,
@@ -51,7 +53,7 @@ export class ChatService {
     const ctx = getTenantContext();
     const tenantId = ctx?.tenantId || 'unknown';
 
-    // ── Guardrails ────────────────────────────────────────────────────────────
+    // ── Guardrails (input) ────────────────────────────────────────────────────
     await this.rateLimiter.enforce();
 
     if (this.profanity.contains(userText)) {
@@ -61,7 +63,7 @@ export class ChatService {
     // ── Input redaction ───────────────────────────────────────────────────────
     const { redacted: safeInput } = await this.redactor.redact(userText, userId, sessionId, req);
 
-    // ── Context build — carries both formatted text and raw QueryResult[] ─────
+    // ── Context build — carries formatted text, entity graph, raw QueryResult[] ─
     const context = await this.contextSvc.build(userId, safeInput, sessionId, req);
 
     // ── Prompt ────────────────────────────────────────────────────────────────
@@ -73,9 +75,6 @@ export class ChatService {
       tenantId,
     });
 
-    // this.logger.debug(`SYSTEM PROMPT:\n${systemPrompt}`);
-    // this.logger.debug(`USER INPUT: ${safeInput}`);
-
     // ── LLM call ──────────────────────────────────────────────────────────────
     const llmResp = await this.llm.complete({
       systemPrompt,
@@ -83,6 +82,7 @@ export class ChatService {
     });
 
     // ── Output redaction ──────────────────────────────────────────────────────
+    // Remove PII before any further processing
     const { redacted: safeOutput } = await this.redactor.redact(
       llmResp.text,
       userId,
@@ -90,8 +90,18 @@ export class ChatService {
       req,
     );
 
-    // ── Format — pass raw query results so formatter can build charts/tables ──
-    const content = this.formatter.format(safeOutput, userText, context.queryResults);
+    // ── Response validation ───────────────────────────────────────────────────
+    // Checks: empty, prompt injection echo, refusal hallucination, runaway length, off-topic
+    // Hard failures throw BadGatewayException — caught by the global exception filter
+    // Soft failures (off-topic, truncation) return warnings and a repaired text
+    const { text: validatedOutput, warnings } = this.validator.validate(safeOutput, userText);
+
+    if (warnings.length > 0) {
+      this.logger.warn(`[${tenantId}] Response validation warnings: ${warnings.join(', ')}`);
+    }
+
+    // ── Format — pick text / chart / table / csv / link from query results ────
+    const content = this.formatter.format(validatedOutput, userText, context.queryResults);
 
     // ── Persist ───────────────────────────────────────────────────────────────
     const message = await this.sessionRepo.saveMessage({
@@ -118,6 +128,7 @@ export class ChatService {
           latencyMs: message.latencyMs,
           contentType: content.type,
           intentsUsed: context.queryResults.map((r) => r.intent),
+          validationWarnings: warnings,
         },
       })
       .catch(() => {});

@@ -14,6 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { EncryptionService } from '@common/security/encryption.service';
 import { UserRole } from '@users/dto/create-user.dto';
+import { version } from 'os';
 
 // ── Canonical prompt templates ────────────────────────────────────────────────
 // IMPORTANT: {{kpiSummary}} and {{anomalySummary}} placeholders MUST be present.
@@ -22,6 +23,7 @@ import { UserRole } from '@users/dto/create-user.dto';
 const DEFAULT_PROMPT_TEMPLATES = [
   {
     name: 'finance_chat',
+    version: 1,
     is_active: true,
     content: `You are a helpful financial assistant for an ERP system.
 You have access to the following REAL financial data for this tenant. This data comes directly from their invoices, bank transactions, and expense records.
@@ -31,6 +33,9 @@ You have access to the following REAL financial data for this tenant. This data 
 
 === RECENT ANOMALIES ===
 {{anomalySummary}}
+
+=== RELATED ENTITIES ===
+{{entityGraph}}
 
 INSTRUCTIONS:
 - Answer questions using ONLY the data shown above.
@@ -196,10 +201,10 @@ export class TenantProvisioningService {
       await runner.query(`SET search_path TO "${schemaName}", public`);
       for (const template of DEFAULT_PROMPT_TEMPLATES) {
         await runner.query(
-          `INSERT INTO prompt_templates (name, content, is_active)
-           VALUES ($1, $2, $3)
-           ON CONFLICT (name) DO UPDATE SET content = EXCLUDED.content`,
-          [template.name, template.content, template.is_active],
+          `INSERT INTO prompt_templates (name, version, content, is_active)
+          VALUES ($1, $2, $3, $4)
+          ON CONFLICT (name, version) DO UPDATE SET content = EXCLUDED.content, is_active = EXCLUDED.is_active`,
+          [template.name, template.version, template.content, template.is_active],
         );
         this.logger.log(`🌱 Seeded prompt template '${template.name}' for ${schemaName}`);
       }

@@ -2,10 +2,11 @@
 //
 // Responsibility: decide the best MessageContent shape for a given AI response.
 //
-// Decision logic:
-//   1. EXPORT keywords + data  → CsvContent  (download intent)
-//   2. CHART keywords + data   → ChartContent (Vega-Lite spec built from QueryResult rows)
-//   3. TABLE keywords + data   → TableContent (columns + rows extracted from QueryResult)
+// Decision priority:
+//   0. LINK keywords + data    → LinkContent  (navigation intent)
+//   1. EXPORT keywords + data  → CsvContent   (download intent)
+//   2. CHART keywords + data   → ChartContent (Vega-Lite spec)
+//   3. TABLE keywords + data   → TableContent (columns + rows)
 //   4. Fallback                → TextContent  (plain LLM text)
 //
 // Chart and table structures are derived from the raw QueryResult[] that
@@ -19,6 +20,21 @@ import { QueryResult } from './dynamic-query/dynamic-query-builder.service';
 import { QueryIntent } from './dynamic-query/table-registry';
 
 // ── Keyword groups ─────────────────────────────────────────────────────────────
+
+const LINK_KEYWORDS = [
+  'link',
+  'open',
+  'view',
+  'navigate',
+  'go to',
+  'show me the',
+  'take me to',
+  'dashboard',
+  'anomaly panel',
+  'insight',
+];
+
+const EXPORT_KEYWORDS = ['export', 'csv', 'download', 'spreadsheet', 'excel'];
 
 const CHART_KEYWORDS = [
   'chart',
@@ -44,15 +60,12 @@ const TABLE_KEYWORDS = [
   'line by line',
 ];
 
-const EXPORT_KEYWORDS = ['export', 'csv', 'download', 'spreadsheet', 'excel'];
-
 // ── Intent → chart type mapping ────────────────────────────────────────────────
-// Determines the most appropriate Vega-Lite mark for each query intent.
 
 const CHART_TYPE_MAP: Partial<Record<QueryIntent, 'bar' | 'line' | 'arc'>> = {
   revenue_trend: 'line',
   expense_breakdown: 'bar',
-  invoice_summary: 'arc', // pie-like
+  invoice_summary: 'arc',
   cash_position: 'bar',
   bank_transactions: 'bar',
   anomaly_summary: 'bar',
@@ -64,13 +77,19 @@ export class ResponseFormatterService {
   /**
    * Selects the best content format based on the user's question and available data.
    *
-   * @param llmText   — sanitised AI response text
+   * @param llmText      — sanitised AI response text
    * @param userQuestion — original user question (used for keyword detection)
    * @param queryResults — raw rows from the dynamic query engine (may be empty)
    */
   format(llmText: string, userQuestion: string, queryResults: QueryResult[] = []): MessageContent {
     const lower = userQuestion.toLowerCase();
     const hasData = queryResults.length > 0 && queryResults.some((r) => r.rowCount > 0);
+
+    // Priority 0 — navigation/link request
+    if (LINK_KEYWORDS.some((kw) => lower.includes(kw)) && hasData) {
+      const link = this.buildLinkContent(queryResults, llmText);
+      if (link) return link;
+    }
 
     // Priority 1 — export/CSV request
     if (EXPORT_KEYWORDS.some((kw) => lower.includes(kw)) && hasData) {
@@ -93,14 +112,57 @@ export class ResponseFormatterService {
     return { type: 'text', text: llmText };
   }
 
+  // ── Link builder ──────────────────────────────────────────────────────────
+
+  private buildLinkContent(queryResults: QueryResult[], _llmText: string): MessageContent | null {
+    // Anomaly results → link to the insights dashboard panel
+    const anomalyResult = queryResults.find(
+      (r) => r.intent === 'anomaly_summary' && r.rowCount > 0,
+    );
+    if (anomalyResult) {
+      const topAnomaly = anomalyResult.rows[0];
+      const anomalyId = topAnomaly?.id as string | undefined;
+      return {
+        type: 'link',
+        url: anomalyId ? `/dashboard/insights/${anomalyId}` : `/dashboard/insights`,
+        label: 'View Anomaly in Dashboard',
+      };
+    }
+
+    // Expense results → link to expense dashboard
+    const expenseResult = queryResults.find(
+      (r) => r.intent === 'expense_breakdown' && r.rowCount > 0,
+    );
+    if (expenseResult) {
+      return {
+        type: 'link',
+        url: '/dashboard/expenses',
+        label: 'View Expense Breakdown',
+      };
+    }
+
+    // Invoice results → link to invoice dashboard
+    const invoiceResult = queryResults.find(
+      (r) => (r.intent === 'invoice_summary' || r.intent === 'overdue_invoices') && r.rowCount > 0,
+    );
+    if (invoiceResult) {
+      return {
+        type: 'link',
+        url:
+          invoiceResult.intent === 'overdue_invoices'
+            ? '/dashboard/invoices?filter=overdue'
+            : '/dashboard/invoices',
+        label:
+          invoiceResult.intent === 'overdue_invoices' ? 'View Overdue Invoices' : 'View Invoices',
+      };
+    }
+
+    return null;
+  }
+
   // ── Chart builder ─────────────────────────────────────────────────────────
 
-  /**
-   * Builds a Vega-Lite spec from the most chart-appropriate QueryResult.
-   * Picks the first result that has a known chart mapping and at least one row.
-   */
   private buildChartContent(queryResults: QueryResult[]): MessageContent | null {
-    // Find the best result to chart — prefer intents with explicit chart mappings
     const result =
       queryResults.find((r) => r.rowCount > 0 && CHART_TYPE_MAP[r.intent]) ??
       queryResults.find((r) => r.rowCount > 0);
@@ -133,7 +195,7 @@ export class ResponseFormatterService {
       height: 300,
     };
 
-    // For revenue_trend — combine year + month into a readable label
+    // revenue_trend — combine year + month into a readable label
     if (result.intent === 'revenue_trend') {
       spec.transform = [
         {
@@ -149,26 +211,19 @@ export class ResponseFormatterService {
 
   // ── Table builder ─────────────────────────────────────────────────────────
 
-  /**
-   * Builds a TableContent from the first QueryResult that has rows.
-   * Column names are derived from the row keys of the first row.
-   */
   private buildTableContent(queryResults: QueryResult[]): MessageContent | null {
     const result = queryResults.find((r) => r.rowCount > 0);
     if (!result) return null;
 
     const columns = Object.keys(result.rows[0]).map((k) =>
-      // Convert snake_case to Title Case for display
       k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
     );
 
     const rows = result.rows.map((row) =>
       Object.values(row).map((v) => {
-        // Format numbers consistently
         if (typeof v === 'number' || (typeof v === 'string' && !isNaN(Number(v)))) {
           return Number(v);
         }
-        // Format dates
         if (v instanceof Date) return v.toLocaleDateString();
         return v ?? '';
       }),
@@ -179,11 +234,6 @@ export class ResponseFormatterService {
 
   // ── CSV builder ───────────────────────────────────────────────────────────
 
-  /**
-   * Signals that the client should trigger a CSV download.
-   * The actual CSV serialisation happens client-side from the rows.
-   * We embed the data as a JSON data URI for simplicity.
-   */
   private buildCsvContent(queryResults: QueryResult[]): MessageContent {
     const result = queryResults.find((r) => r.rowCount > 0);
     if (!result) return { type: 'csv', url: '', filename: 'export.csv' };
@@ -195,7 +245,6 @@ export class ResponseFormatterService {
         headers
           .map((h) => {
             const val = row[h] ?? '';
-            // Quote values that contain commas or quotes
             const str = String(val);
             return str.includes(',') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str;
           })
@@ -215,10 +264,6 @@ export class ResponseFormatterService {
 
   // ── Field inference ───────────────────────────────────────────────────────
 
-  /**
-   * Infers the best x/y/color fields for a chart based on intent and row shape.
-   * Falls back to the first two columns if no specific mapping is known.
-   */
   private inferChartFields(result: QueryResult): {
     xField: string;
     yField: string;
@@ -231,7 +276,7 @@ export class ResponseFormatterService {
       cash_position: { x: 'currency', y: 'balance' },
       bank_transactions: { x: 'date', y: 'amount', color: 'type' },
       anomaly_summary: { x: 'anomaly_type', y: 'score' },
-      product_inventory: { x: 'product_name', y: 'price', color: undefined },
+      product_inventory: { x: 'product_name', y: 'price' },
     };
 
     const mapping = FIELD_MAP[result.intent];
@@ -239,7 +284,6 @@ export class ResponseFormatterService {
       return { xField: mapping.x, yField: mapping.y, colorField: mapping.color };
     }
 
-    // Fallback — use first two keys from the first row
     const keys = Object.keys(result.rows[0] ?? {});
     return { xField: keys[0] ?? 'x', yField: keys[1] ?? 'y' };
   }

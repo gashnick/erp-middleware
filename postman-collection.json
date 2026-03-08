@@ -377,10 +377,6 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "// Scan is async — job is enqueued and processed in background.",
-                  "// The next request (List Insights) should be run manually after",
-                  "// a few seconds, or use the Postman Collection Runner with a",
-                  "// delay set between requests.",
                   "pm.test('Scan enqueued', () => {",
                   "  pm.response.to.have.status(201);",
                   "  const r = pm.response.json();",
@@ -412,19 +408,10 @@
               "script": {
                 "exec": [
                   "pm.test('Returns array', () => pm.response.to.have.status(200));",
-                  "",
                   "const r = pm.response.json();",
                   "const list = Array.isArray(r) ? r : (r.data ?? []);",
-                  "",
-                  "pm.test('At least one anomaly detected', () => {",
-                  "  pm.expect(list.length).to.be.greaterThan(0);",
-                  "});",
-                  "",
-                  "// Save first anomaly ID for subsequent requests",
-                  "if (list.length) {",
-                  "  pm.collectionVariables.set('insightId', list[0].id);",
-                  "  console.log('insightId set to:', list[0].id);",
-                  "}"
+                  "pm.test('At least one anomaly detected', () => { pm.expect(list.length).to.be.greaterThan(0); });",
+                  "if (list.length) { pm.collectionVariables.set('insightId', list[0].id); console.log('insightId set to:', list[0].id); }"
                 ]
               }
             }
@@ -476,7 +463,6 @@
               "listen": "prerequest",
               "script": {
                 "exec": [
-                  "// Guard — abort if insightId was never set by List Insights",
                   "const id = pm.collectionVariables.get('insightId');",
                   "if (!id) throw new Error('insightId not set — run List Insights first');"
                 ]
@@ -552,6 +538,161 @@
               "raw": "{{baseUrl}}/chat/sessions/{{sessionId}}",
               "host": ["{{baseUrl}}"],
               "path": ["chat", "sessions", "{{sessionId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin — Model & Prompt Versioning",
+      "item": [
+        {
+          "name": "Get Active Model (OpenAI)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/model-config/openai",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "model-config", "openai"]
+            }
+          }
+        },
+        {
+          "name": "Get Active Model (Gemini)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/model-config/gemini",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "model-config", "gemini"]
+            }
+          }
+        },
+        {
+          "name": "Get Model History (OpenAI)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/model-config/openai/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "model-config", "openai", "history"]
+            }
+          }
+        },
+        {
+          "name": "Set Active Model (OpenAI)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('Model updated', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"modelName\": \"gpt-4.1\",\n  \"notes\": \"Testing GPT-4.1 for finance chat\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/model-config/openai",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "model-config", "openai"]
+            }
+          }
+        },
+        {
+          "name": "Rollback Model (OpenAI)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('Model rolled back', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "" },
+            "url": {
+              "raw": "{{baseUrl}}/admin/model-config/openai/rollback",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "model-config", "openai", "rollback"]
+            }
+          }
+        },
+        {
+          "name": "List Prompt Template Versions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/prompt-templates/finance_chat/versions",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "prompt-templates", "finance_chat", "versions"]
+            }
+          }
+        },
+        {
+          "name": "Publish New Prompt Version",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('Version published', () => pm.response.to.have.status(201));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"You are a concise financial assistant.\\n\\n=== KPI SUMMARY ===\\n{{kpiSummary}}\\n\\n=== RECENT ANOMALIES ===\\n{{anomalySummary}}\\n\\n=== RELATED ENTITIES ===\\n{{entityGraph}}\\n\\nAnswer in 2-3 sentences maximum.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/prompt-templates/finance_chat/publish",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "prompt-templates", "finance_chat", "publish"]
+            }
+          }
+        },
+        {
+          "name": "Rollback Prompt Template",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('Template rolled back', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "" },
+            "url": {
+              "raw": "{{baseUrl}}/admin/prompt-templates/finance_chat/rollback",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "prompt-templates", "finance_chat", "rollback"]
             }
           }
         }

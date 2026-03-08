@@ -30,6 +30,7 @@ import { KnowledgeGraphModule } from './knowledgeGraph/knowledge-graph.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { BullModule } from '@nestjs/bull';
 import { PubSubModule } from '@common/pubsub/pubsub.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { PubSubModule } from '@common/pubsub/pubsub.module';
     BullModule.forRoot({ redis: { host: process.env.REDIS_HOS, port: 6379 } }),
     PubSubModule,
     AnalyticsModule,
+    AdminModule,
   ],
   controllers: [AppController, DashboardController],
   providers: [

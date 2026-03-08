@@ -18,6 +18,7 @@ import { ProfanityFilterService } from './guardrails/profanity-filter.service';
 import { RateLimiterService } from './guardrails/rate-limiter.service';
 import { AuditModule } from '@common/audit/audit.module';
 import { DynamicQueryModule } from './dynamic-query/dynamic-query.module';
+import { ResponseValidatorService } from './guardrails/response-validator.service';
 
 // DatabaseModule exports TenantQueryRunnerService — needed by RateLimiterService
 // for tenant tier lookup and by ChatSessionRepository, PromptTemplateService.
@@ -43,6 +44,7 @@ import { DynamicQueryModule } from './dynamic-query/dynamic-query.module';
     PiiRedactorService,
     ProfanityFilterService,
     RateLimiterService,
+    ResponseValidatorService,
   ],
   controllers: [ChatController],
   exports: [ChatService],
