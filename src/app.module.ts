@@ -21,7 +21,6 @@ import { EncryptionModule } from '@common/security/encryption.module';
 import { APP_FILTER } from '@nestjs/core';
 import { AllExceptionsFilter } from '@common/filters/all-exceptions.filter';
 import { MetricsModule } from '@common/metrics/metrics.module';
-import { SubscriptionPlanModule } from './subscription-plans/subscriptionPlan.module';
 import { GraphQLModule } from './graphql/graphql.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AnomalyModule } from './anomaly/anomaly.module';
@@ -31,6 +30,7 @@ import { FeedbackModule } from './feedback/feedback.module';
 import { BullModule } from '@nestjs/bull';
 import { PubSubModule } from '@common/pubsub/pubsub.module';
 import { AdminModule } from './admin/admin.module';
+import { SubscriptionModule } from '@subscription/subscription.module';
 
 @Module({
   imports: [
@@ -59,7 +59,6 @@ import { AdminModule } from './admin/admin.module';
     EncryptionModule,
     ConnectorsModule,
     MetricsModule,
-    SubscriptionPlanModule,
     GraphQLModule,
     AnalyticsModule,
     AnomalyModule,
@@ -70,6 +69,7 @@ import { AdminModule } from './admin/admin.module';
     PubSubModule,
     AnalyticsModule,
     AdminModule,
+    SubscriptionModule,
   ],
   controllers: [AppController, DashboardController],
   providers: [

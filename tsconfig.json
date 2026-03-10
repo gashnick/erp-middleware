@@ -26,7 +26,7 @@
       "@auth/*": ["src/auth/*"],
       "@tenants/*": ["src/tenants/*"],
       "@users/*": ["src/users/*"],
-      "@subscriptions/*": ["src/subscriptions/*"],
+      "@subscription/*": ["src/subscription/*"],
       "@connectors/*": ["src/connectors/*"],
       "@finance/*": ["src/finance/*"],
       "@dashboards/*": ["src/dashboards/*"],
@@ -41,7 +41,8 @@
       "@graphql/*": ["src/graphql/*"],
       "@jobs/*": ["src/jobs/*"],
       "@knowledgeGraph/*": ["src/knowledgeGraph/*"],
-      "@admin/*": ["src/admin/*"]
+      "@admin/*": ["src/admin/*"],
+      "@subscription-plans/*": ["src/subscription-plans/*"]
     }
   }
 }

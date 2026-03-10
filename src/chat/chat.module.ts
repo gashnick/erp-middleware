@@ -19,6 +19,7 @@ import { RateLimiterService } from './guardrails/rate-limiter.service';
 import { AuditModule } from '@common/audit/audit.module';
 import { DynamicQueryModule } from './dynamic-query/dynamic-query.module';
 import { ResponseValidatorService } from './guardrails/response-validator.service';
+import { SubscriptionModule } from '@subscription/subscription.module';
 
 // DatabaseModule exports TenantQueryRunnerService — needed by RateLimiterService
 // for tenant tier lookup and by ChatSessionRepository, PromptTemplateService.
@@ -30,6 +31,7 @@ import { ResponseValidatorService } from './guardrails/response-validator.servic
     KnowledgeGraphModule,
     AuditModule,
     DynamicQueryModule,
+    SubscriptionModule,
   ],
   providers: [
     ChatService,

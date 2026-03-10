@@ -16,7 +16,8 @@
     { "key": "etlJobId", "value": "", "type": "string" },
     { "key": "insightId", "value": "", "type": "string" },
     { "key": "sessionId", "value": "", "type": "string" },
-    { "key": "messageId", "value": "", "type": "string" }
+    { "key": "messageId", "value": "", "type": "string" },
+    { "key": "targetUserId", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -106,7 +107,7 @@
                   "const r = pm.response.json();",
                   "if (r.auth?.accessToken)  pm.collectionVariables.set('tenantToken',  r.auth.accessToken);",
                   "if (r.auth?.refreshToken) pm.collectionVariables.set('refreshToken', r.auth.refreshToken);",
-                  "if (r.tenantId)           pm.collectionVariables.set('tenantId',      r.tenantId);"
+                  "if (r.tenantId)           pm.collectionVariables.set('tenantId', r.tenantId);"
                 ]
               }
             }
@@ -153,6 +154,259 @@
               "raw": "{{baseUrl}}/tenants/{{tenantId}}",
               "host": ["{{baseUrl}}"],
               "path": ["tenants", "{{tenantId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subscription & Feature Flags",
+      "item": [
+        {
+          "name": "1. Get Current Plan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns subscription details', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.planSlug).to.exist;",
+                  "  pm.expect(r.status).to.exist;",
+                  "  console.log('Current plan:', r.planSlug, '| Max seats:', r.maxSeats);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/subscription",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscription"]
+            }
+          }
+        },
+        {
+          "name": "2. Get Usage Summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns usage array', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r).to.be.an('array');",
+                  "  console.log('Features tracked:', r.length);",
+                  "  r.forEach(f => console.log(f.feature, ':', f.used, '/', f.limit ?? 'unlimited'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/subscription/usage",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscription", "usage"]
+            }
+          }
+        },
+        {
+          "name": "3. Get Seats",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns seat info', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.used).to.be.a('number');",
+                  "  pm.expect(r.max).to.be.a('number');",
+                  "  pm.expect(r.users).to.be.an('array');",
+                  "  if (r.users.length) pm.collectionVariables.set('targetUserId', r.users[0].id);",
+                  "  console.log('Seats:', r.used, '/', r.max);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/subscription/seats",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscription", "seats"]
+            }
+          }
+        },
+        {
+          "name": "4. Upgrade Plan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Plan upgraded', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  console.log('Upgraded to:', r.planSlug);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"planSlug\": \"enterprise\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/subscription/upgrade",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscription", "upgrade"]
+            }
+          }
+        },
+        {
+          "name": "5. Downgrade Plan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Plan downgraded', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  console.log('Downgraded to:', r.planSlug);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"planSlug\": \"standard\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/subscription/downgrade",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscription", "downgrade"]
+            }
+          }
+        },
+        {
+          "name": "6. Deactivate Seat",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const id = pm.collectionVariables.get('targetUserId');",
+                  "if (!id) throw new Error('targetUserId not set — run Get Seats first');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Seat deactivated', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.message).to.include('deactivated');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "" },
+            "url": {
+              "raw": "{{baseUrl}}/subscription/seats/{{targetUserId}}/deactivate",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscription", "seats", "{{targetUserId}}", "deactivate"]
+            }
+          }
+        },
+        {
+          "name": "7. Activate Seat",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const id = pm.collectionVariables.get('targetUserId');",
+                  "if (!id) throw new Error('targetUserId not set — run Get Seats first');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Seat activated', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const r = pm.response.json();",
+                  "  pm.expect(r.message).to.include('activated');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "" },
+            "url": {
+              "raw": "{{baseUrl}}/subscription/seats/{{targetUserId}}/activate",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscription", "seats", "{{targetUserId}}", "activate"]
+            }
+          }
+        },
+        {
+          "name": "List Subscription Plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/subscription-plans",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscription-plans"]
+            }
+          }
+        },
+        {
+          "name": "Get Plan by Slug",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/subscription-plans/enterprise",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscription-plans", "enterprise"]
             }
           }
         }
@@ -345,23 +599,6 @@
               "raw": "{{baseUrl}}/dashboard/finance",
               "host": ["{{baseUrl}}"],
               "path": ["dashboard", "finance"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Subscription Plans",
-      "item": [
-        {
-          "name": "List Plans",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/subscription-plans",
-              "host": ["{{baseUrl}}"],
-              "path": ["subscription-plans"]
             }
           }
         }
@@ -745,6 +982,101 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"query\": \"query CashPosition($asOf: String) {\\n  cashPosition(asOf: $asOf) {\\n    balance\\n    currency\\n    asOf\\n  }\\n}\",\n  \"variables\": { \"asOf\": \"2024-03-31\" }\n}"
+            },
+            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "GraphQL — Subscription",
+      "item": [
+        {
+          "name": "Current Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"query\": \"query {\\n  currentPlan\\n}\"\n}" },
+            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+          }
+        },
+        {
+          "name": "Subscription Usage",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query {\\n  subscriptionUsage\\n}\"\n}"
+            },
+            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+          }
+        },
+        {
+          "name": "Seat Info",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"query\": \"query {\\n  seatInfo\\n}\"\n}" },
+            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+          }
+        },
+        {
+          "name": "Upgrade Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation UpgradePlan($slug: String!) {\\n  upgradePlan(slug: $slug)\\n}\",\n  \"variables\": { \"slug\": \"enterprise\" }\n}"
+            },
+            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+          }
+        },
+        {
+          "name": "Downgrade Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation DowngradePlan($slug: String!) {\\n  downgradePlan(slug: $slug)\\n}\",\n  \"variables\": { \"slug\": \"standard\" }\n}"
+            },
+            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+          }
+        },
+        {
+          "name": "Deactivate Seat",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation DeactivateSeat($userId: ID!) {\\n  deactivateSeat(userId: $userId)\\n}\",\n  \"variables\": { \"userId\": \"{{targetUserId}}\" }\n}"
             },
             "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
           }
