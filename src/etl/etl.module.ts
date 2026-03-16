@@ -10,6 +10,7 @@ import { QuarantineService } from './services/quarantine.service';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { EtlTransformerService } from './services/etl-transformer.service';
 import { KnowledgeGraphModule } from '@knowledgeGraph/knowledge-graph.module';
+import { SubscriptionModule } from '@subscription/subscription.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { KnowledgeGraphModule } from '@knowledgeGraph/knowledge-graph.module';
     TenantsModule,
     EventEmitterModule.forRoot(),
     KnowledgeGraphModule,
+    SubscriptionModule,
   ],
   controllers: [QuarantineController, require('./etl.controller').EtlController],
   providers: [EtlService, ConnectorHealthService, QuarantineService, EtlTransformerService],

@@ -17,6 +17,7 @@ import { ProfanityFilterService } from './guardrails/profanity-filter.service';
 import { RateLimiterService } from './guardrails/rate-limiter.service';
 import { ChatSessionRepository } from './chat-session.repository';
 import { ChatMessage, ChatSession } from './chat.types';
+import { FeatureFlagService } from '@subscription/feature-flag.service';
 
 @Injectable()
 export class ChatService {
@@ -33,6 +34,7 @@ export class ChatService {
     private readonly profanity: ProfanityFilterService,
     private readonly rateLimiter: RateLimiterService,
     private readonly audit: AuditLogService,
+    private readonly featureFlags: FeatureFlagService,
   ) {}
 
   async createSession(userId: string): Promise<ChatSession> {
@@ -55,6 +57,16 @@ export class ChatService {
 
     // ── Guardrails (input) ────────────────────────────────────────────────────
     await this.rateLimiter.enforce();
+
+    // Track chat query usage — throws ForbiddenException if limit reached
+    if (tenantId !== 'unknown') {
+      await this.featureFlags.checkAndIncrement(tenantId, 'chat_queries').catch((err) => {
+        // Re-throw ForbiddenException (limit reached) but swallow other errors
+        // so a flag DB issue never blocks chat
+        if (err?.status === 403) throw err;
+        this.logger.warn(`Feature flag check failed (non-fatal): ${err.message}`);
+      });
+    }
 
     if (this.profanity.contains(userText)) {
       throw new BadRequestException('Message contains disallowed content.');

@@ -14,6 +14,7 @@ import { ConnectorHealthService } from '@connectors/connector-health.service';
 import { runWithTenantContext } from '@common/context/tenant-context';
 import { EtlTransformerService } from './etl-transformer.service';
 import { QuarantineService } from './quarantine.service';
+import { FeatureFlagService } from '@subscription/feature-flag.service';
 import {
   IInvoice,
   IContact,
@@ -34,6 +35,7 @@ export class EtlService {
     private readonly tenantProvisioning: TenantProvisioningService,
     private readonly connectorHealth: ConnectorHealthService,
     private readonly transformer: EtlTransformerService,
+    private readonly featureFlags: FeatureFlagService,
     @Inject(forwardRef(() => QuarantineService))
     private readonly quarantine: QuarantineService,
   ) {}
@@ -72,7 +74,11 @@ export class EtlService {
   ): Promise<SyncResult> {
     const tenant = await this.tenantProvisioning.findById(tenantId);
     if (!tenant) throw new BadRequestException('Invalid Tenant');
-
+    // Track ETL uplaod usage against 'connectors' feature limits
+    await this.featureFlags.checkAndIncrement(tenantId, 'connectors').catch((err) => {
+      if (err?.status === 403) throw err;
+      this.logger.warn(`Feature flag check failed (non-fatal): ${err.message}`);
+    });
     return runWithTenantContext(
       { tenantId, schemaName: tenant.schema_name, userId: 'manual-upload', userRole: 'ADMIN' },
       () => this.executeBatchWithRetry(tenantId, rawData, source, entityType),
