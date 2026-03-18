@@ -1,0 +1,27 @@
+{
+  "name": "Finance Dashboard",
+  "item": [
+    {
+      "name": "Get Dashboard",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/dashboard/finance",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "dashboard",
+            "finance"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,384 @@
+{
+  "name": "Alerts — REST",
+  "item": [
+    {
+      "name": "1. Create Alert Rule",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Rule created', () => { pm.response.to.have.status(201); const r = pm.response.json(); pm.expect(r.id).to.exist; pm.collectionVariables.set('alertRuleId', r.id); console.log('alertRuleId:', r.id); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Cash Balance Alert\",\n  \"metric\": \"cash_balance\",\n  \"operator\": \"gt\",\n  \"threshold\": 0,\n  \"severity\": \"low\",\n  \"channels\": [\"in_app\"]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/alerts/rules",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "alerts",
+            "rules"
+          ]
+        }
+      }
+    },
+    {
+      "name": "2. List Alert Rules",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns rules array', () => { pm.response.to.have.status(200); pm.expect(pm.response.json()).to.be.an('array'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/alerts/rules?isActive=true",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "alerts",
+            "rules"
+          ],
+          "query": [
+            {
+              "key": "isActive",
+              "value": "true"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "3. Get Alert Rule",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const id = pm.collectionVariables.get('alertRuleId');",
+              "if (!id) throw new Error('alertRuleId not set — run Create Alert Rule first');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns rule', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('alertRuleId')); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/alerts/rules/{{alertRuleId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "alerts",
+            "rules",
+            "{{alertRuleId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "4. Update Alert Rule",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const id = pm.collectionVariables.get('alertRuleId');",
+              "if (!id) throw new Error('alertRuleId not set — run Create Alert Rule first');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Rule updated', () => { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"severity\": \"high\",\n  \"channels\": [\"in_app\", \"email\"]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/alerts/rules/{{alertRuleId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "alerts",
+            "rules",
+            "{{alertRuleId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "5. List Alert Events",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns events array', () => { pm.response.to.have.status(200); });",
+              "const r = pm.response.json();",
+              "if (Array.isArray(r) && r.length) { pm.collectionVariables.set('alertEventId', r[0].id); console.log('alertEventId:', r[0].id); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/alerts/events?status=open",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "alerts",
+            "events"
+          ],
+          "query": [
+            {
+              "key": "status",
+              "value": "open"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "6. Get Open Alerts",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns open alerts', () => { pm.response.to.have.status(200); pm.expect(pm.response.json()).to.be.an('array'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/alerts/events/open",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "alerts",
+            "events",
+            "open"
+          ]
+        }
+      }
+    },
+    {
+      "name": "7. Acknowledge Alert Event",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const id = pm.collectionVariables.get('alertEventId');",
+              "if (!id) throw new Error('alertEventId not set — run List Alert Events first');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Alert acknowledged', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('acknowledged'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        },
+        "url": {
+          "raw": "{{baseUrl}}/alerts/events/{{alertEventId}}/acknowledge",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "alerts",
+            "events",
+            "{{alertEventId}}",
+            "acknowledge"
+          ]
+        }
+      }
+    },
+    {
+      "name": "8. Resolve Alert Event",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const id = pm.collectionVariables.get('alertEventId');",
+              "if (!id) throw new Error('alertEventId not set — run List Alert Events first');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Alert resolved', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('resolved'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        },
+        "url": {
+          "raw": "{{baseUrl}}/alerts/events/{{alertEventId}}/resolve",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "alerts",
+            "events",
+            "{{alertEventId}}",
+            "resolve"
+          ]
+        }
+      }
+    },
+    {
+      "name": "9. Delete Alert Rule",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const id = pm.collectionVariables.get('alertRuleId');",
+              "if (!id) throw new Error('alertRuleId not set — run Create Alert Rule first');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Rule deleted', () => { pm.response.to.have.status(204); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/alerts/rules/{{alertRuleId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "alerts",
+            "rules",
+            "{{alertRuleId}}"
+          ]
+        }
+      }
+    }
+  ]
+}

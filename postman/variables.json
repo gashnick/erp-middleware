@@ -1,0 +1,24 @@
+{
+  "info": {
+    "name": "ERP Middleware API",
+    "description": "Complete API collection for AI-Powered ERP Middleware",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api", "type": "string" },
+    { "key": "graphqlUrl", "value": "http://localhost:3000/graphql", "type": "string" },
+    { "key": "publicToken", "value": "", "type": "string" },
+    { "key": "tenantToken", "value": "", "type": "string" },
+    { "key": "refreshToken", "value": "", "type": "string" },
+    { "key": "tenantId", "value": "", "type": "string" },
+    { "key": "invoiceId", "value": "", "type": "string" },
+    { "key": "quarantineId", "value": "", "type": "string" },
+    { "key": "etlJobId", "value": "", "type": "string" },
+    { "key": "insightId", "value": "", "type": "string" },
+    { "key": "sessionId", "value": "", "type": "string" },
+    { "key": "messageId", "value": "", "type": "string" },
+    { "key": "targetUserId", "value": "", "type": "string" },
+    { "key": "alertRuleId", "value": "", "type": "string" },
+    { "key": "alertEventId", "value": "", "type": "string" }
+  ]
+}

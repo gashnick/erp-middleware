@@ -1,0 +1,35 @@
+{
+  "name": "GraphQL — Knowledge Graph",
+  "item": [
+    {
+      "name": "Entity Search",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "{{tenantId}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"query EntitySearch($question: String!) {\\n  entitySearch(question: $question) {\\n    id\\n    type\\n    externalId\\n    label\\n    meta\\n  }\\n}\",\n  \"variables\": { \"question\": \"Who are our top suppliers?\" }\n}"
+        },
+        "url": {
+          "raw": "{{graphqlUrl}}",
+          "host": [
+            "{{graphqlUrl}}"
+          ]
+        }
+      }
+    }
+  ]
+}

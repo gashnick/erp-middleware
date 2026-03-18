@@ -1,0 +1,117 @@
+{
+  "name": "Connectors & ETL",
+  "item": [
+    {
+      "name": "Upload CSV",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const r = pm.response.json();",
+              "if (r.jobId) pm.collectionVariables.set('etlJobId', r.jobId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": ""
+            },
+            {
+              "key": "entityType",
+              "type": "text",
+              "value": "bank_transaction",
+              "description": "Options: invoice, bank_transaction, expense, contact, product"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/connectors/csv-upload",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "connectors",
+            "csv-upload"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get ETL Job Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/connectors/jobs/{{etlJobId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "connectors",
+            "jobs",
+            "{{etlJobId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Build Knowledge Graph",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Build accepted', () => pm.response.to.have.status(202));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        },
+        "url": {
+          "raw": "{{baseUrl}}/connectors/build-graph",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "connectors",
+            "build-graph"
+          ]
+        }
+      }
+    }
+  ]
+}

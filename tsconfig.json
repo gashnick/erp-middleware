@@ -42,7 +42,9 @@
       "@jobs/*": ["src/jobs/*"],
       "@knowledgeGraph/*": ["src/knowledgeGraph/*"],
       "@admin/*": ["src/admin/*"],
-      "@subscription-plans/*": ["src/subscription-plans/*"]
+      "@subscription-plans/*": ["src/subscription-plans/*"],
+      "@alerts/*": ["src/alerts/*"],
+      "@notifications/*": ["src/notifications/*"]
     }
   }
 }

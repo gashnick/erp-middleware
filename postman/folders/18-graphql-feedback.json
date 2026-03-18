@@ -1,0 +1,35 @@
+{
+  "name": "GraphQL — Feedback",
+  "item": [
+    {
+      "name": "Submit Insight Feedback",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "{{tenantId}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"mutation SubmitFeedback($insightId: ID!, $rating: String!, $comment: String) {\\n  submitFeedback(insightId: $insightId, rating: $rating, comment: $comment) {\\n    id\\n    insightId\\n    rating\\n    comment\\n    createdAt\\n  }\\n}\",\n  \"variables\": { \"insightId\": \"{{insightId}}\", \"rating\": \"helpful\", \"comment\": \"Correctly identified a real duplicate.\" }\n}"
+        },
+        "url": {
+          "raw": "{{graphqlUrl}}",
+          "host": [
+            "{{graphqlUrl}}"
+          ]
+        }
+      }
+    }
+  ]
+}

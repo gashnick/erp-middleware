@@ -1,0 +1,119 @@
+{
+  "name": "GraphQL — Chat",
+  "item": [
+    {
+      "name": "Create Chat Session",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const r = pm.response.json();",
+              "const s = r.data?.createChatSession;",
+              "if (s?.id) pm.collectionVariables.set('sessionId', s.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "{{tenantId}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"mutation {\\n  createChatSession {\\n    id\\n    createdAt\\n    messages {\\n      id\\n      role\\n      content\\n      createdAt\\n    }\\n  }\\n}\"\n}"
+        },
+        "url": {
+          "raw": "{{graphqlUrl}}",
+          "host": [
+            "{{graphqlUrl}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get Chat Session",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "{{tenantId}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"query ChatSession($id: ID!) {\\n  chatSession(id: $id) {\\n    id\\n    createdAt\\n    messages {\\n      id\\n      sessionId\\n      role\\n      content\\n      latencyMs\\n      createdAt\\n    }\\n  }\\n}\",\n  \"variables\": { \"id\": \"{{sessionId}}\" }\n}"
+        },
+        "url": {
+          "raw": "{{graphqlUrl}}",
+          "host": [
+            "{{graphqlUrl}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Send Message",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const r = pm.response.json();",
+              "const m = r.data?.sendMessage;",
+              "if (m?.id) pm.collectionVariables.set('messageId', m.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "{{tenantId}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"mutation SendMessage($sessionId: ID!, $text: String!) {\\n  sendMessage(sessionId: $sessionId, text: $text) {\\n    id\\n    sessionId\\n    role\\n    content\\n    latencyMs\\n    createdAt\\n  }\\n}\",\n  \"variables\": { \"sessionId\": \"{{sessionId}}\", \"text\": \"What is our current cash position and any unusual expenses this month?\" }\n}"
+        },
+        "url": {
+          "raw": "{{graphqlUrl}}",
+          "host": [
+            "{{graphqlUrl}}"
+          ]
+        }
+      }
+    }
+  ]
+}

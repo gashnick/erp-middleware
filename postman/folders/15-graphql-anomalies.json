@@ -1,0 +1,77 @@
+{
+  "name": "GraphQL — Anomalies",
+  "item": [
+    {
+      "name": "List Anomalies",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const r = pm.response.json();",
+              "const list = r.data?.anomalies ?? [];",
+              "if (list.length) pm.collectionVariables.set('insightId', list[0].id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "{{tenantId}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"query Anomalies($types: [String], $minScore: Float) {\\n  anomalies(types: $types, minScore: $minScore) {\\n    id\\n    type\\n    score\\n    confidence\\n    explanation\\n    relatedIds\\n    detectedAt\\n  }\\n}\",\n  \"variables\": { \"types\": [\"EXPENSE_SPIKE\", \"DUPLICATE_INVOICE\"], \"minScore\": 0.5 }\n}"
+        },
+        "url": {
+          "raw": "{{graphqlUrl}}",
+          "host": [
+            "{{graphqlUrl}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get Anomaly",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "{{tenantId}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"query Anomaly($id: ID!) {\\n  anomaly(id: $id) {\\n    id\\n    type\\n    score\\n    confidence\\n    explanation\\n    relatedIds\\n    detectedAt\\n  }\\n}\",\n  \"variables\": { \"id\": \"{{insightId}}\" }\n}"
+        },
+        "url": {
+          "raw": "{{graphqlUrl}}",
+          "host": [
+            "{{graphqlUrl}}"
+          ]
+        }
+      }
+    }
+  ]
+}

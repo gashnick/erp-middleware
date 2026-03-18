@@ -1,0 +1,95 @@
+{
+  "name": "GraphQL — Analytics",
+  "item": [
+    {
+      "name": "Revenue by Month",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "{{tenantId}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"query RevenueByMonth($year: Int!) {\\n  revenueByMonth(year: $year) {\\n    month year revenue currency\\n  }\\n}\",\n  \"variables\": { \"year\": 2026 }\n}"
+        },
+        "url": {
+          "raw": "{{graphqlUrl}}",
+          "host": [
+            "{{graphqlUrl}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Expense Breakdown",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "{{tenantId}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"query ExpenseBreakdown($from: String!, $to: String!) {\\n  expenseBreakdown(from: $from, to: $to) {\\n    category vendorId vendorName total currency\\n  }\\n}\",\n  \"variables\": { \"from\": \"2025-11-01T00:00:00Z\", \"to\": \"2026-03-31T23:59:59Z\" }\n}"
+        },
+        "url": {
+          "raw": "{{graphqlUrl}}",
+          "host": [
+            "{{graphqlUrl}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Cash Position",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tenantToken}}"
+          },
+          {
+            "key": "x-tenant-id",
+            "value": "{{tenantId}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"query CashPosition($asOf: String) {\\n  cashPosition(asOf: $asOf) {\\n    balance currency asOf\\n  }\\n}\",\n  \"variables\": { \"asOf\": \"2026-03-31\" }\n}"
+        },
+        "url": {
+          "raw": "{{graphqlUrl}}",
+          "host": [
+            "{{graphqlUrl}}"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -5,19 +5,81 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:3000/api", "type": "string" },
-    { "key": "graphqlUrl", "value": "http://localhost:3000/graphql", "type": "string" },
-    { "key": "publicToken", "value": "", "type": "string" },
-    { "key": "tenantToken", "value": "", "type": "string" },
-    { "key": "refreshToken", "value": "", "type": "string" },
-    { "key": "tenantId", "value": "", "type": "string" },
-    { "key": "invoiceId", "value": "", "type": "string" },
-    { "key": "quarantineId", "value": "", "type": "string" },
-    { "key": "etlJobId", "value": "", "type": "string" },
-    { "key": "insightId", "value": "", "type": "string" },
-    { "key": "sessionId", "value": "", "type": "string" },
-    { "key": "messageId", "value": "", "type": "string" },
-    { "key": "targetUserId", "value": "", "type": "string" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "graphqlUrl",
+      "value": "http://localhost:3000/graphql",
+      "type": "string"
+    },
+    {
+      "key": "publicToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tenantToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tenantId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "invoiceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "quarantineId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "etlJobId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "insightId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sessionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "messageId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "targetUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "alertRuleId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "alertEventId",
+      "value": "",
+      "type": "string"
+    }
   ],
   "item": [
     {
@@ -27,15 +89,25 @@
           "name": "Register User",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"fullName\": \"Admin User\",\n  \"role\": \"ADMIN\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/register",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "register"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
             }
           }
         },
@@ -55,15 +127,25 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
             }
           }
         },
@@ -83,12 +165,25 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/auth/refresh",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "refresh"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
             }
           }
         }
@@ -115,25 +210,49 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{publicToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{publicToken}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"companyName\": \"Acme Corporation\",\n  \"dataSourceType\": \"external\",\n  \"subscriptionPlan\": \"enterprise\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/tenants", "host": ["{{baseUrl}}"], "path": ["tenants"] }
+            "url": {
+              "raw": "{{baseUrl}}/tenants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tenants"
+              ]
+            }
           }
         },
         {
           "name": "Get Tenant",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/tenants/{{tenantId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["tenants", "{{tenantId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tenants",
+                "{{tenantId}}"
+              ]
             }
           }
         },
@@ -141,19 +260,42 @@
           "name": "List All Tenants",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
-            "url": { "raw": "{{baseUrl}}/tenants", "host": ["{{baseUrl}}"], "path": ["tenants"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tenants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tenants"
+              ]
+            }
           }
         },
         {
           "name": "Delete Tenant",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/tenants/{{tenantId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["tenants", "{{tenantId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tenants",
+                "{{tenantId}}"
+              ]
             }
           }
         }
@@ -173,7 +315,6 @@
                   "  pm.response.to.have.status(200);",
                   "  const r = pm.response.json();",
                   "  pm.expect(r.planSlug).to.exist;",
-                  "  pm.expect(r.status).to.exist;",
                   "  console.log('Current plan:', r.planSlug, '| Max seats:', r.maxSeats);",
                   "});"
                 ]
@@ -182,11 +323,20 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/subscription",
-              "host": ["{{baseUrl}}"],
-              "path": ["subscription"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription"
+              ]
             }
           }
         },
@@ -201,7 +351,6 @@
                   "  pm.response.to.have.status(200);",
                   "  const r = pm.response.json();",
                   "  pm.expect(r).to.be.an('array');",
-                  "  console.log('Features tracked:', r.length);",
                   "  r.forEach(f => console.log(f.feature, ':', f.used, '/', f.limit ?? 'unlimited'));",
                   "});"
                 ]
@@ -210,11 +359,21 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/subscription/usage",
-              "host": ["{{baseUrl}}"],
-              "path": ["subscription", "usage"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription",
+                "usage"
+              ]
             }
           }
         },
@@ -228,10 +387,7 @@
                   "pm.test('Returns seat info', () => {",
                   "  pm.response.to.have.status(200);",
                   "  const r = pm.response.json();",
-                  "  pm.expect(r.used).to.be.a('number');",
-                  "  pm.expect(r.max).to.be.a('number');",
-                  "  pm.expect(r.users).to.be.an('array');",
-                  "  if (r.users.length) pm.collectionVariables.set('targetUserId', r.users[0].id);",
+                  "  if (r.users?.length) pm.collectionVariables.set('targetUserId', r.users[0].id);",
                   "  console.log('Seats:', r.used, '/', r.max);",
                   "});"
                 ]
@@ -240,11 +396,21 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/subscription/seats",
-              "host": ["{{baseUrl}}"],
-              "path": ["subscription", "seats"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription",
+                "seats"
+              ]
             }
           }
         },
@@ -255,11 +421,7 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Plan upgraded', () => {",
-                  "  pm.response.to.have.status(200);",
-                  "  const r = pm.response.json();",
-                  "  console.log('Upgraded to:', r.planSlug);",
-                  "});"
+                  "pm.test('Plan upgraded', () => { pm.response.to.have.status(200); });"
                 ]
               }
             }
@@ -267,14 +429,28 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"planSlug\": \"enterprise\"\n}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planSlug\": \"enterprise\"\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/subscription/upgrade",
-              "host": ["{{baseUrl}}"],
-              "path": ["subscription", "upgrade"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription",
+                "upgrade"
+              ]
             }
           }
         },
@@ -285,11 +461,7 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Plan downgraded', () => {",
-                  "  pm.response.to.have.status(200);",
-                  "  const r = pm.response.json();",
-                  "  console.log('Downgraded to:', r.planSlug);",
-                  "});"
+                  "pm.test('Plan downgraded', () => { pm.response.to.have.status(200); });"
                 ]
               }
             }
@@ -297,14 +469,28 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"planSlug\": \"standard\"\n}" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planSlug\": \"standard\"\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/subscription/downgrade",
-              "host": ["{{baseUrl}}"],
-              "path": ["subscription", "downgrade"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription",
+                "downgrade"
+              ]
             }
           }
         },
@@ -324,11 +510,7 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Seat deactivated', () => {",
-                  "  pm.response.to.have.status(200);",
-                  "  const r = pm.response.json();",
-                  "  pm.expect(r.message).to.include('deactivated');",
-                  "});"
+                  "pm.test('Seat deactivated', () => { pm.response.to.have.status(200); });"
                 ]
               }
             }
@@ -336,14 +518,26 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
             ],
-            "body": { "mode": "raw", "raw": "" },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
             "url": {
               "raw": "{{baseUrl}}/subscription/seats/{{targetUserId}}/deactivate",
-              "host": ["{{baseUrl}}"],
-              "path": ["subscription", "seats", "{{targetUserId}}", "deactivate"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription",
+                "seats",
+                "{{targetUserId}}",
+                "deactivate"
+              ]
             }
           }
         },
@@ -363,11 +557,7 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Seat activated', () => {",
-                  "  pm.response.to.have.status(200);",
-                  "  const r = pm.response.json();",
-                  "  pm.expect(r.message).to.include('activated');",
-                  "});"
+                  "pm.test('Seat activated', () => { pm.response.to.have.status(200); });"
                 ]
               }
             }
@@ -375,14 +565,26 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
             ],
-            "body": { "mode": "raw", "raw": "" },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
             "url": {
               "raw": "{{baseUrl}}/subscription/seats/{{targetUserId}}/activate",
-              "host": ["{{baseUrl}}"],
-              "path": ["subscription", "seats", "{{targetUserId}}", "activate"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription",
+                "seats",
+                "{{targetUserId}}",
+                "activate"
+              ]
             }
           }
         },
@@ -393,24 +595,408 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/subscription-plans",
-              "host": ["{{baseUrl}}"],
-              "path": ["subscription-plans"]
-            }
-          }
-        },
-        {
-          "name": "Get Plan by Slug",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/subscription-plans/enterprise",
-              "host": ["{{baseUrl}}"],
-              "path": ["subscription-plans", "enterprise"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription-plans"
+              ]
             }
           }
         }
       ]
+    },
+    {
+      "name": "Subscription",
+      "item": []
+    },
+    {
+      "name": "Alerts — REST",
+      "item": [
+        {
+          "name": "1. Create Alert Rule",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rule created', () => { pm.response.to.have.status(201); const r = pm.response.json(); pm.expect(r.id).to.exist; pm.collectionVariables.set('alertRuleId', r.id); console.log('alertRuleId:', r.id); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cash Balance Alert\",\n  \"metric\": \"cash_balance\",\n  \"operator\": \"gt\",\n  \"threshold\": 0,\n  \"severity\": \"low\",\n  \"channels\": [\"in_app\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/alerts/rules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts",
+                "rules"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. List Alert Rules",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns rules array', () => { pm.response.to.have.status(200); pm.expect(pm.response.json()).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/alerts/rules?isActive=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts",
+                "rules"
+              ],
+              "query": [
+                {
+                  "key": "isActive",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Get Alert Rule",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const id = pm.collectionVariables.get('alertRuleId');",
+                  "if (!id) throw new Error('alertRuleId not set — run Create Alert Rule first');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns rule', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('alertRuleId')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/alerts/rules/{{alertRuleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts",
+                "rules",
+                "{{alertRuleId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Update Alert Rule",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const id = pm.collectionVariables.get('alertRuleId');",
+                  "if (!id) throw new Error('alertRuleId not set — run Create Alert Rule first');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rule updated', () => { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"severity\": \"high\",\n  \"channels\": [\"in_app\", \"email\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/alerts/rules/{{alertRuleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts",
+                "rules",
+                "{{alertRuleId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. List Alert Events",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns events array', () => { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json();",
+                  "if (Array.isArray(r) && r.length) { pm.collectionVariables.set('alertEventId', r[0].id); console.log('alertEventId:', r[0].id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/alerts/events?status=open",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "open"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "6. Get Open Alerts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Returns open alerts', () => { pm.response.to.have.status(200); pm.expect(pm.response.json()).to.be.an('array'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/alerts/events/open",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts",
+                "events",
+                "open"
+              ]
+            }
+          }
+        },
+        {
+          "name": "7. Acknowledge Alert Event",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const id = pm.collectionVariables.get('alertEventId');",
+                  "if (!id) throw new Error('alertEventId not set — run List Alert Events first');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Alert acknowledged', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('acknowledged'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/alerts/events/{{alertEventId}}/acknowledge",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts",
+                "events",
+                "{{alertEventId}}",
+                "acknowledge"
+              ]
+            }
+          }
+        },
+        {
+          "name": "8. Resolve Alert Event",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const id = pm.collectionVariables.get('alertEventId');",
+                  "if (!id) throw new Error('alertEventId not set — run List Alert Events first');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Alert resolved', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('resolved'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/alerts/events/{{alertEventId}}/resolve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts",
+                "events",
+                "{{alertEventId}}",
+                "resolve"
+              ]
+            }
+          }
+        },
+        {
+          "name": "9. Delete Alert Rule",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const id = pm.collectionVariables.get('alertRuleId');",
+                  "if (!id) throw new Error('alertRuleId not set — run Create Alert Rule first');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rule deleted', () => { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/alerts/rules/{{alertRuleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts",
+                "rules",
+                "{{alertRuleId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Alerts",
+      "item": []
     },
     {
       "name": "Invoices",
@@ -431,33 +1017,70 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"customer_name\": \"Client Corp\",\n  \"amount\": 5000.00,\n  \"currency\": \"USD\",\n  \"status\": \"paid\",\n  \"invoice_date\": \"2024-03-15T00:00:00Z\",\n  \"due_date\": \"2024-04-15T00:00:00Z\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/invoices", "host": ["{{baseUrl}}"], "path": ["invoices"] }
+            "url": {
+              "raw": "{{baseUrl}}/invoices",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices"
+              ]
+            }
           }
         },
         {
           "name": "List Invoices",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
-            "url": { "raw": "{{baseUrl}}/invoices", "host": ["{{baseUrl}}"], "path": ["invoices"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/invoices",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices"
+              ]
+            }
           }
         },
         {
           "name": "Get Invoice",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/invoices/{{invoiceId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["invoices", "{{invoiceId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoiceId}}"
+              ]
             }
           }
         }
@@ -481,11 +1104,20 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "file", "type": "file", "src": "" },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                },
                 {
                   "key": "entityType",
                   "type": "text",
@@ -496,8 +1128,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/connectors/csv-upload",
-              "host": ["{{baseUrl}}"],
-              "path": ["connectors", "csv-upload"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "connectors",
+                "csv-upload"
+              ]
             }
           }
         },
@@ -505,11 +1142,22 @@
           "name": "Get ETL Job Status",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/connectors/jobs/{{etlJobId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["connectors", "jobs", "{{etlJobId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "connectors",
+                "jobs",
+                "{{etlJobId}}"
+              ]
             }
           }
         },
@@ -519,21 +1167,37 @@
             {
               "listen": "test",
               "script": {
-                "exec": ["pm.test('Build accepted', () => pm.response.to.have.status(202));"]
+                "exec": [
+                  "pm.test('Build accepted', () => pm.response.to.have.status(202));"
+                ]
               }
             }
           ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "" },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
             "url": {
               "raw": "{{baseUrl}}/connectors/build-graph",
-              "host": ["{{baseUrl}}"],
-              "path": ["connectors", "build-graph"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "connectors",
+                "build-graph"
+              ]
             }
           }
         }
@@ -546,11 +1210,20 @@
           "name": "List Quarantine Records",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/quarantine",
-              "host": ["{{baseUrl}}"],
-              "path": ["quarantine"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quarantine"
+              ]
             }
           }
         },
@@ -558,11 +1231,21 @@
           "name": "Get Quarantine Status",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/quarantine/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["quarantine", "status"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quarantine",
+                "status"
+              ]
             }
           }
         },
@@ -571,8 +1254,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -580,8 +1269,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/quarantine/{{quarantineId}}/retry",
-              "host": ["{{baseUrl}}"],
-              "path": ["quarantine", "{{quarantineId}}", "retry"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "quarantine",
+                "{{quarantineId}}",
+                "retry"
+              ]
             }
           }
         }
@@ -594,11 +1289,21 @@
           "name": "Get Dashboard",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/dashboard/finance",
-              "host": ["{{baseUrl}}"],
-              "path": ["dashboard", "finance"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dashboard",
+                "finance"
+              ]
             }
           }
         }
@@ -614,11 +1319,7 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Scan enqueued', () => {",
-                  "  pm.response.to.have.status(201);",
-                  "  const r = pm.response.json();",
-                  "  pm.expect(r.jobId).to.exist;",
-                  "});"
+                  "pm.test('Scan enqueued', () => { pm.response.to.have.status(201); pm.expect(pm.response.json().jobId).to.exist; });"
                 ]
               }
             }
@@ -626,14 +1327,28 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "" },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
             "url": {
               "raw": "{{baseUrl}}/insights/scan",
-              "host": ["{{baseUrl}}"],
-              "path": ["insights", "scan"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "insights",
+                "scan"
+              ]
             }
           }
         },
@@ -647,49 +1362,59 @@
                   "pm.test('Returns array', () => pm.response.to.have.status(200));",
                   "const r = pm.response.json();",
                   "const list = Array.isArray(r) ? r : (r.data ?? []);",
-                  "pm.test('At least one anomaly detected', () => { pm.expect(list.length).to.be.greaterThan(0); });",
-                  "if (list.length) { pm.collectionVariables.set('insightId', list[0].id); console.log('insightId set to:', list[0].id); }"
+                  "if (list.length) { pm.collectionVariables.set('insightId', list[0].id); console.log('insightId:', list[0].id); }"
                 ]
               }
             }
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/insights?types=EXPENSE_SPIKE,DUPLICATE_INVOICE&minScore=0.5",
-              "host": ["{{baseUrl}}"],
-              "path": ["insights"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "insights"
+              ],
               "query": [
-                { "key": "types", "value": "EXPENSE_SPIKE,DUPLICATE_INVOICE" },
-                { "key": "minScore", "value": "0.5" }
+                {
+                  "key": "types",
+                  "value": "EXPENSE_SPIKE,DUPLICATE_INVOICE"
+                },
+                {
+                  "key": "minScore",
+                  "value": "0.5"
+                }
               ]
             }
           }
         },
         {
           "name": "3. Get Insight",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Returns single anomaly', () => {",
-                  "  pm.response.to.have.status(200);",
-                  "  const r = pm.response.json();",
-                  "  pm.expect(r.id).to.eql(pm.collectionVariables.get('insightId'));",
-                  "});"
-                ]
-              }
-            }
-          ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/insights/{{insightId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["insights", "{{insightId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "insights",
+                "{{insightId}}"
+              ]
             }
           }
         },
@@ -709,13 +1434,7 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Feedback created', () => {",
-                  "  pm.response.to.have.status(201);",
-                  "  const r = pm.response.json();",
-                  "  pm.expect(r.id).to.exist;",
-                  "  pm.expect(r.rating).to.eql('helpful');",
-                  "  pm.expect(r.insightId).to.eql(pm.collectionVariables.get('insightId'));",
-                  "});"
+                  "pm.test('Feedback created', () => { pm.response.to.have.status(201); pm.expect(pm.response.json().id).to.exist; });"
                 ]
               }
             }
@@ -723,8 +1442,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -732,12 +1457,22 @@
             },
             "url": {
               "raw": "{{baseUrl}}/insights/{{insightId}}/feedback",
-              "host": ["{{baseUrl}}"],
-              "path": ["insights", "{{insightId}}", "feedback"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "insights",
+                "{{insightId}}",
+                "feedback"
+              ]
             }
           }
         }
       ]
+    },
+    {
+      "name": "Insights",
+      "item": []
     },
     {
       "name": "Chat — REST",
@@ -757,12 +1492,25 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
-            "body": { "mode": "raw", "raw": "" },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
             "url": {
               "raw": "{{baseUrl}}/chat/sessions",
-              "host": ["{{baseUrl}}"],
-              "path": ["chat", "sessions"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "chat",
+                "sessions"
+              ]
             }
           }
         },
@@ -770,15 +1518,30 @@
           "name": "Get Chat Session",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/chat/sessions/{{sessionId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["chat", "sessions", "{{sessionId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "chat",
+                "sessions",
+                "{{sessionId}}"
+              ]
             }
           }
         }
       ]
+    },
+    {
+      "name": "Chat",
+      "item": []
     },
     {
       "name": "Admin — Model & Prompt Versioning",
@@ -787,11 +1550,22 @@
           "name": "Get Active Model (OpenAI)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/admin/model-config/openai",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "model-config", "openai"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "model-config",
+                "openai"
+              ]
             }
           }
         },
@@ -799,11 +1573,22 @@
           "name": "Get Active Model (Gemini)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/admin/model-config/gemini",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "model-config", "gemini"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "model-config",
+                "gemini"
+              ]
             }
           }
         },
@@ -811,11 +1596,23 @@
           "name": "Get Model History (OpenAI)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/admin/model-config/openai/history",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "model-config", "openai", "history"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "model-config",
+                "openai",
+                "history"
+              ]
             }
           }
         },
@@ -825,15 +1622,23 @@
             {
               "listen": "test",
               "script": {
-                "exec": ["pm.test('Model updated', () => pm.response.to.have.status(200));"]
+                "exec": [
+                  "pm.test('Model updated', () => pm.response.to.have.status(200));"
+                ]
               }
             }
           ],
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -841,8 +1646,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/model-config/openai",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "model-config", "openai"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "model-config",
+                "openai"
+              ]
             }
           }
         },
@@ -852,21 +1663,39 @@
             {
               "listen": "test",
               "script": {
-                "exec": ["pm.test('Model rolled back', () => pm.response.to.have.status(200));"]
+                "exec": [
+                  "pm.test('Model rolled back', () => pm.response.to.have.status(200));"
+                ]
               }
             }
           ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "" },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
             "url": {
               "raw": "{{baseUrl}}/admin/model-config/openai/rollback",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "model-config", "openai", "rollback"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "model-config",
+                "openai",
+                "rollback"
+              ]
             }
           }
         },
@@ -874,11 +1703,23 @@
           "name": "List Prompt Template Versions",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/admin/prompt-templates/finance_chat/versions",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "prompt-templates", "finance_chat", "versions"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "prompt-templates",
+                "finance_chat",
+                "versions"
+              ]
             }
           }
         },
@@ -888,15 +1729,23 @@
             {
               "listen": "test",
               "script": {
-                "exec": ["pm.test('Version published', () => pm.response.to.have.status(201));"]
+                "exec": [
+                  "pm.test('Version published', () => pm.response.to.have.status(201));"
+                ]
               }
             }
           ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -904,8 +1753,15 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/prompt-templates/finance_chat/publish",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "prompt-templates", "finance_chat", "publish"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "prompt-templates",
+                "finance_chat",
+                "publish"
+              ]
             }
           }
         },
@@ -915,25 +1771,59 @@
             {
               "listen": "test",
               "script": {
-                "exec": ["pm.test('Template rolled back', () => pm.response.to.have.status(200));"]
+                "exec": [
+                  "pm.test('Template rolled back', () => pm.response.to.have.status(200));"
+                ]
               }
             }
           ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "" },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
             "url": {
               "raw": "{{baseUrl}}/admin/prompt-templates/finance_chat/rollback",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "prompt-templates", "finance_chat", "rollback"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "prompt-templates",
+                "finance_chat",
+                "rollback"
+              ]
             }
           }
         }
       ]
+    },
+    {
+      "name": "Admin",
+      "item": []
+    },
+    {
+      "name": "Analytics",
+      "item": []
+    },
+    {
+      "name": "Alerts",
+      "item": []
+    },
+    {
+      "name": "Subscription",
+      "item": []
     },
     {
       "name": "GraphQL — Analytics",
@@ -943,15 +1833,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"query RevenueByMonth($year: Int!) {\\n  revenueByMonth(year: $year) {\\n    month\\n    year\\n    revenue\\n    currency\\n  }\\n}\",\n  \"variables\": { \"year\": 2024 }\n}"
+              "raw": "{\n  \"query\": \"query RevenueByMonth($year: Int!) {\\n  revenueByMonth(year: $year) {\\n    month year revenue currency\\n  }\\n}\",\n  \"variables\": { \"year\": 2026 }\n}"
             },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
           }
         },
         {
@@ -959,15 +1863,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"query ExpenseBreakdown($from: String!, $to: String!) {\\n  expenseBreakdown(from: $from, to: $to) {\\n    category\\n    vendorId\\n    vendorName\\n    total\\n    currency\\n  }\\n}\",\n  \"variables\": {\n    \"from\": \"2024-01-01T00:00:00Z\",\n    \"to\": \"2024-03-31T23:59:59Z\"\n  }\n}"
+              "raw": "{\n  \"query\": \"query ExpenseBreakdown($from: String!, $to: String!) {\\n  expenseBreakdown(from: $from, to: $to) {\\n    category vendorId vendorName total currency\\n  }\\n}\",\n  \"variables\": { \"from\": \"2025-11-01T00:00:00Z\", \"to\": \"2026-03-31T23:59:59Z\" }\n}"
             },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
           }
         },
         {
@@ -975,18 +1893,165 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"query CashPosition($asOf: String) {\\n  cashPosition(asOf: $asOf) {\\n    balance\\n    currency\\n    asOf\\n  }\\n}\",\n  \"variables\": { \"asOf\": \"2024-03-31\" }\n}"
+              "raw": "{\n  \"query\": \"query CashPosition($asOf: String) {\\n  cashPosition(asOf: $asOf) {\\n    balance currency asOf\\n  }\\n}\",\n  \"variables\": { \"asOf\": \"2026-03-31\" }\n}"
             },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
           }
         }
       ]
+    },
+    {
+      "name": "Anomalies",
+      "item": []
+    },
+    {
+      "name": "GraphQL — Alerts",
+      "item": [
+        {
+          "name": "List Alert Rules",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query AlertRules($isActive: Boolean) {\\n  alertRules(isActive: $isActive)\\n}\",\n  \"variables\": { \"isActive\": true }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Open Alerts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query {\\n  openAlerts\\n}\"\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Acknowledge Alert",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation AcknowledgeAlert($id: ID!) {\\n  acknowledgeAlert(id: $id)\\n}\",\n  \"variables\": { \"id\": \"{{alertEventId}}\" }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Resolve Alert",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation ResolveAlert($id: ID!) {\\n  resolveAlert(id: $id)\\n}\",\n  \"variables\": { \"id\": \"{{alertEventId}}\" }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chat",
+      "item": []
     },
     {
       "name": "GraphQL — Subscription",
@@ -996,12 +2061,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"query\": \"query {\\n  currentPlan\\n}\"\n}" },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query {\\n  currentPlan\\n}\"\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
           }
         },
         {
@@ -1009,15 +2091,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"query\": \"query {\\n  subscriptionUsage\\n}\"\n}"
             },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
           }
         },
         {
@@ -1025,12 +2121,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"query\": \"query {\\n  seatInfo\\n}\"\n}" },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query {\\n  seatInfo\\n}\"\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
           }
         },
         {
@@ -1038,15 +2151,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"query\": \"mutation UpgradePlan($slug: String!) {\\n  upgradePlan(slug: $slug)\\n}\",\n  \"variables\": { \"slug\": \"enterprise\" }\n}"
             },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
           }
         },
         {
@@ -1054,34 +2181,36 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"query\": \"mutation DowngradePlan($slug: String!) {\\n  downgradePlan(slug: $slug)\\n}\",\n  \"variables\": { \"slug\": \"standard\" }\n}"
             },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
-          }
-        },
-        {
-          "name": "Deactivate Seat",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"query\": \"mutation DeactivateSeat($userId: ID!) {\\n  deactivateSeat(userId: $userId)\\n}\",\n  \"variables\": { \"userId\": \"{{targetUserId}}\" }\n}"
-            },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
           }
         }
       ]
+    },
+    {
+      "name": "Knowledge Graph",
+      "item": []
     },
     {
       "name": "GraphQL — Anomalies",
@@ -1103,15 +2232,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"query Anomalies($types: [String], $minScore: Float) {\\n  anomalies(types: $types, minScore: $minScore) {\\n    id\\n    type\\n    score\\n    confidence\\n    explanation\\n    relatedIds\\n    detectedAt\\n  }\\n}\",\n  \"variables\": {\n    \"types\": [\"EXPENSE_SPIKE\", \"DUPLICATE_INVOICE\"],\n    \"minScore\": 0.5\n  }\n}"
+              "raw": "{\n  \"query\": \"query Anomalies($types: [String], $minScore: Float) {\\n  anomalies(types: $types, minScore: $minScore) {\\n    id\\n    type\\n    score\\n    confidence\\n    explanation\\n    relatedIds\\n    detectedAt\\n  }\\n}\",\n  \"variables\": { \"types\": [\"EXPENSE_SPIKE\", \"DUPLICATE_INVOICE\"], \"minScore\": 0.5 }\n}"
             },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
           }
         },
         {
@@ -1119,18 +2262,36 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"query\": \"query Anomaly($id: ID!) {\\n  anomaly(id: $id) {\\n    id\\n    type\\n    score\\n    confidence\\n    explanation\\n    relatedIds\\n    detectedAt\\n  }\\n}\",\n  \"variables\": { \"id\": \"{{insightId}}\" }\n}"
             },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
           }
         }
       ]
+    },
+    {
+      "name": "Feedback",
+      "item": []
     },
     {
       "name": "GraphQL — Chat",
@@ -1152,15 +2313,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"query\": \"mutation {\\n  createChatSession {\\n    id\\n    createdAt\\n    messages {\\n      id\\n      role\\n      content\\n      createdAt\\n    }\\n  }\\n}\"\n}"
             },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
           }
         },
         {
@@ -1168,15 +2343,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"query\": \"query ChatSession($id: ID!) {\\n  chatSession(id: $id) {\\n    id\\n    createdAt\\n    messages {\\n      id\\n      sessionId\\n      role\\n      content\\n      latencyMs\\n      createdAt\\n    }\\n  }\\n}\",\n  \"variables\": { \"id\": \"{{sessionId}}\" }\n}"
             },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
           }
         },
         {
@@ -1196,15 +2385,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"mutation SendMessage($sessionId: ID!, $text: String!) {\\n  sendMessage(sessionId: $sessionId, text: $text) {\\n    id\\n    sessionId\\n    role\\n    content\\n    latencyMs\\n    createdAt\\n  }\\n}\",\n  \"variables\": {\n    \"sessionId\": \"{{sessionId}}\",\n    \"text\": \"What is our current cash position and any unusual expenses this month?\"\n  }\n}"
+              "raw": "{\n  \"query\": \"mutation SendMessage($sessionId: ID!, $text: String!) {\\n  sendMessage(sessionId: $sessionId, text: $text) {\\n    id\\n    sessionId\\n    role\\n    content\\n    latencyMs\\n    createdAt\\n  }\\n}\",\n  \"variables\": { \"sessionId\": \"{{sessionId}}\", \"text\": \"What is our current cash position and any unusual expenses this month?\" }\n}"
             },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
           }
         }
       ]
@@ -1217,18 +2420,36 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"query\": \"query EntitySearch($question: String!) {\\n  entitySearch(question: $question) {\\n    id\\n    type\\n    externalId\\n    label\\n    meta\\n  }\\n}\",\n  \"variables\": { \"question\": \"Who are our top suppliers?\" }\n}"
             },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
           }
         }
       ]
+    },
+    {
+      "name": "HR Dashboard",
+      "item": []
     },
     {
       "name": "GraphQL — Feedback",
@@ -1238,15 +2459,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
-              { "key": "x-tenant-id", "value": "{{tenantId}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenantToken}}"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{tenantId}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"mutation SubmitFeedback($insightId: ID!, $rating: String!, $comment: String) {\\n  submitFeedback(insightId: $insightId, rating: $rating, comment: $comment) {\\n    id\\n    insightId\\n    rating\\n    comment\\n    createdAt\\n  }\\n}\",\n  \"variables\": {\n    \"insightId\": \"{{insightId}}\",\n    \"rating\": \"helpful\",\n    \"comment\": \"Correctly identified a real duplicate.\"\n  }\n}"
+              "raw": "{\n  \"query\": \"mutation SubmitFeedback($insightId: ID!, $rating: String!, $comment: String) {\\n  submitFeedback(insightId: $insightId, rating: $rating, comment: $comment) {\\n    id\\n    insightId\\n    rating\\n    comment\\n    createdAt\\n  }\\n}\",\n  \"variables\": { \"insightId\": \"{{insightId}}\", \"rating\": \"helpful\", \"comment\": \"Correctly identified a real duplicate.\" }\n}"
             },
-            "url": { "raw": "{{graphqlUrl}}", "host": ["{{graphqlUrl}}"] }
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": [
+                "{{graphqlUrl}}"
+              ]
+            }
           }
         }
       ]

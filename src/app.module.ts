@@ -31,6 +31,7 @@ import { BullModule } from '@nestjs/bull';
 import { PubSubModule } from '@common/pubsub/pubsub.module';
 import { AdminModule } from './admin/admin.module';
 import { SubscriptionModule } from '@subscription/subscription.module';
+import { AlertModule } from '@alerts/alert.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { SubscriptionModule } from '@subscription/subscription.module';
     AnalyticsModule,
     AdminModule,
     SubscriptionModule,
+    AlertModule,
   ],
   controllers: [AppController, DashboardController],
   providers: [
