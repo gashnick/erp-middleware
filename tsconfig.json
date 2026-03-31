@@ -44,7 +44,8 @@
       "@admin/*": ["src/admin/*"],
       "@subscription-plans/*": ["src/subscription-plans/*"],
       "@alerts/*": ["src/alerts/*"],
-      "@notifications/*": ["src/notifications/*"]
+      "@notifications/*": ["src/notifications/*"],
+      "@hr/*": ["src/hr/*"]
     }
   }
 }

@@ -59,9 +59,29 @@ export interface IProduct extends BaseTenantEntity {
   stock: number;
 }
 
+// ── Stream 3: HR ───────────────────────────────────────────────────────────
+
+export type EmployeeStatus = 'active' | 'inactive' | 'on_leave' | 'terminated';
+
+export interface IEmployee extends BaseTenantEntity {
+  /** Stable key from the source system — used for ON CONFLICT upserts */
+  external_id: string;
+  name: string;
+  department: string;
+  role: string;
+  status: EmployeeStatus;
+  start_date: Date;
+  end_date?: Date | null;
+  salary: number;
+  currency: string;
+  metadata?: Record<string, any>;
+}
+
+// ── Quarantine / shared ────────────────────────────────────────────────────
+
 export interface IQuarantineRecord extends BaseTenantEntity {
   source_type: string;
-  entity_type: 'invoice' | 'contact' | 'expense' | 'bank_transaction' | 'product';
+  entity_type: 'invoice' | 'contact' | 'expense' | 'bank_transaction' | 'product' | 'employee';
   raw_data: any;
   errors: any;
   status: 'pending' | 'resolved' | 'ignored';

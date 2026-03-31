@@ -1,3 +1,4 @@
+// src/etl/etl.service.ts
 import {
   BadRequestException,
   Injectable,
@@ -21,9 +22,16 @@ import {
   IExpense,
   IBankTransaction,
   IProduct,
+  IEmployee,
 } from '../interfaces/tenant-entities.interface';
 
-export type EntityType = 'invoice' | 'contact' | 'expense' | 'bank_transaction' | 'product';
+export type EntityType =
+  | 'invoice'
+  | 'contact'
+  | 'expense'
+  | 'bank_transaction'
+  | 'product'
+  | 'employee';
 
 @Injectable()
 export class EtlService {
@@ -74,7 +82,7 @@ export class EtlService {
   ): Promise<SyncResult> {
     const tenant = await this.tenantProvisioning.findById(tenantId);
     if (!tenant) throw new BadRequestException('Invalid Tenant');
-    // Track ETL uplaod usage against 'connectors' feature limits
+    // Track ETL upload usage against 'connectors' feature limits
     await this.featureFlags.checkAndIncrement(tenantId, 'connectors').catch((err) => {
       if (err?.status === 403) throw err;
       this.logger.warn(`Feature flag check failed (non-fatal): ${err.message}`);
@@ -142,6 +150,7 @@ export class EtlService {
         expense: async () => this.transformer.transformExpenses(data, source),
         bank_transaction: async () => this.transformer.transformBankTransactions(data, source),
         product: async () => this.transformer.transformProducts(data, source),
+        employee: async () => this.transformer.transformEmployees(data, source),
       };
 
       const handler = handlers[entityType];
@@ -177,10 +186,12 @@ export class EtlService {
         return this.insertBankTransactions(runner, data);
       case 'product':
         return this.upsertProducts(runner, data);
+      case 'employee':
+        return this.upsertEmployees(runner, data);
     }
   }
 
-  // ── Restored SQL Helpers ──────────────────────────────────────────────────
+  // ── SQL helpers ────────────────────────────────────────────────────────────
 
   private async upsertInvoices(runner: QueryRunner, invoices: IInvoice[]) {
     const params = invoices.flatMap((inv) => [
@@ -206,8 +217,13 @@ export class EtlService {
       `INSERT INTO invoices (external_id, customer_name, invoice_number, amount, status, currency, invoice_date, due_date, is_encrypted, metadata)
        VALUES ${placeholders}
        ON CONFLICT (external_id) DO UPDATE SET
-       amount = EXCLUDED.amount, status = EXCLUDED.status, customer_name = EXCLUDED.customer_name,
-       currency = EXCLUDED.currency, invoice_date = EXCLUDED.invoice_date, due_date = EXCLUDED.due_date, metadata = EXCLUDED.metadata`,
+         amount        = EXCLUDED.amount,
+         status        = EXCLUDED.status,
+         customer_name = EXCLUDED.customer_name,
+         currency      = EXCLUDED.currency,
+         invoice_date  = EXCLUDED.invoice_date,
+         due_date      = EXCLUDED.due_date,
+         metadata      = EXCLUDED.metadata`,
       params,
     );
   }
@@ -224,7 +240,10 @@ export class EtlService {
       .join(', ');
     await runner.query(
       `INSERT INTO contacts (external_id, name, type, contact_info) VALUES ${placeholders}
-       ON CONFLICT (external_id) DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type, contact_info = EXCLUDED.contact_info`,
+       ON CONFLICT (external_id) DO UPDATE SET
+         name         = EXCLUDED.name,
+         type         = EXCLUDED.type,
+         contact_info = EXCLUDED.contact_info`,
       params,
     );
   }
@@ -246,13 +265,12 @@ export class EtlService {
     // Step 2 — upsert each vendor into contacts, collect name → id mapping
     const vendorIdMap = new Map<string, string>();
     for (const vendorName of uniqueVendorNames) {
-      // Stable external_id from name — prevents duplicate contacts on re-upload
       const externalId = `vendor-${vendorName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
       const rows = await runner.query(
         `INSERT INTO contacts (external_id, name, type)
-       VALUES ($1, $2, 'vendor')
-       ON CONFLICT (external_id) DO UPDATE SET name = EXCLUDED.name
-       RETURNING id`,
+         VALUES ($1, $2, 'vendor')
+         ON CONFLICT (external_id) DO UPDATE SET name = EXCLUDED.name
+         RETURNING id`,
         [externalId, vendorName],
       );
       if (rows[0]?.id) {
@@ -279,7 +297,7 @@ export class EtlService {
       .join(', ');
     await runner.query(
       `INSERT INTO expenses (category, vendor_id, amount, currency, expense_date, description, metadata)
-     VALUES ${placeholders}`,
+       VALUES ${placeholders}`,
       params,
     );
   }
@@ -301,7 +319,8 @@ export class EtlService {
       )
       .join(', ');
     await runner.query(
-      `INSERT INTO bank_transactions (type, amount, currency, transaction_date, description, reference, metadata) VALUES ${placeholders}`,
+      `INSERT INTO bank_transactions (type, amount, currency, transaction_date, description, reference, metadata)
+       VALUES ${placeholders}`,
       params,
     );
   }
@@ -312,9 +331,69 @@ export class EtlService {
       .map((_, i) => `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`)
       .join(', ');
     await runner.query(
-      `INSERT INTO products (external_id, name, price, stock) VALUES ${placeholders}
-       ON CONFLICT (external_id) DO UPDATE SET name = EXCLUDED.name, price = EXCLUDED.price, stock = EXCLUDED.stock`,
+      `INSERT INTO products (external_id, name, price, stock)
+       VALUES ${placeholders}
+       ON CONFLICT (external_id) DO UPDATE SET
+         name  = EXCLUDED.name,
+         price = EXCLUDED.price,
+         stock = EXCLUDED.stock`,
       params,
+    );
+  }
+
+  /**
+   * Upserts employees in a single bulk statement.
+   *
+   * Conflict target: external_id (unique index from migration 1705000000008).
+   *
+   * On conflict — update all mutable columns. We intentionally skip
+   * external_id (the key) and created_at (immutable after first insert).
+   * updated_at is refreshed on every upsert so the dashboard can show
+   * when the record was last synced.
+   *
+   * Column count per row: 9  →  params stride = 9
+   */
+  private async upsertEmployees(runner: QueryRunner, employees: IEmployee[]) {
+    const STRIDE_WITH_META = 10;
+    const paramsWithMeta = employees.flatMap((e) => [
+      e.external_id, // $b+1
+      e.name, // $b+2
+      e.department, // $b+3
+      e.role, // $b+4
+      e.status, // $b+5
+      e.start_date, // $b+6
+      e.end_date ?? null, // $b+7
+      e.salary, // $b+8
+      e.currency, // $b+9
+      JSON.stringify(e.metadata ?? {}), // $b+10
+    ]);
+
+    const placeholders = employees
+      .map((_, i) => {
+        const b = i * STRIDE_WITH_META;
+        return (
+          `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, ` +
+          `$${b + 6}, $${b + 7}, $${b + 8}, $${b + 9}, $${b + 10}::jsonb)`
+        );
+      })
+      .join(', ');
+
+    await runner.query(
+      `INSERT INTO employees
+         (external_id, name, department, role, status, start_date, end_date, salary, currency, metadata)
+       VALUES ${placeholders}
+       ON CONFLICT (external_id) WHERE external_id IS NOT NULL DO UPDATE SET
+         name       = EXCLUDED.name,
+         department = EXCLUDED.department,
+         role       = EXCLUDED.role,
+         status     = EXCLUDED.status,
+         start_date = EXCLUDED.start_date,
+         end_date   = EXCLUDED.end_date,
+         salary     = EXCLUDED.salary,
+         currency   = EXCLUDED.currency,
+         metadata   = EXCLUDED.metadata,
+         updated_at = now()`,
+      paramsWithMeta,
     );
   }
 
@@ -333,7 +412,8 @@ export class EtlService {
       )
       .join(', ');
     await runner.query(
-      `INSERT INTO quarantine_records (source_type, raw_data, errors, status, entity_type) VALUES ${placeholders}`,
+      `INSERT INTO quarantine_records (source_type, raw_data, errors, status, entity_type)
+       VALUES ${placeholders}`,
       params,
     );
   }

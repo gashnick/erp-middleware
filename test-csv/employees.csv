@@ -1,0 +1,31 @@
+external_id,name,department,role,status,start_date,end_date,salary,currency,last_review
+EMP-001,Jane Doe,Engineering,Senior Engineer,active,2025-01-15,,95000,USD,2025-11-01
+EMP-002,John Smith,Engineering,Junior Engineer,active,2025-10-01,,62000,USD,
+EMP-003,Alice Mwangi,Engineering,Staff Engineer,active,2019-03-10,,88000,USD,2025-06-15
+EMP-004,Bob Kariuki,Engineering,Engineering Manager,active,2018-07-22,,145000,USD,2025-09-30
+EMP-005,Carol Njeri,Sales,Account Executive,active,2025-11-20,,58000,USD,
+EMP-006,David Omondi,Sales,Sales Manager,active,2020-05-14,,112000,USD,2024-12-01
+EMP-007,Eve Achieng,Sales,Business Development Rep,on_leave,2022-08-03,,67000,USD,2024-08-10
+EMP-008,Frank Otieno,Sales,Account Executive,active,2025-09-05,,55000,USD,
+EMP-009,Grace Wanjiru,Finance,Financial Analyst,active,2021-02-28,,78000,USD,2025-07-20
+EMP-010,Henry Kamau,Finance,Finance Manager,active,2017-11-11,,135000,USD,2025-10-05
+EMP-011,Irene Chebet,Finance,Senior Accountant,active,2023-04-17,,72000,USD,2025-03-01
+EMP-012,James Mutua,Finance,Junior Accountant,active,2025-08-01,,48000,USD,
+EMP-013,Karen Waweru,HR,HR Manager,active,2019-09-25,,118000,USD,2025-08-14
+EMP-014,Liam Ochieng,HR,HR Business Partner,active,2022-12-01,,85000,USD,2025-01-10
+EMP-015,Mary Adhiambo,HR,Recruiter,on_leave,2024-03-18,,61000,USD,2024-03-01
+EMP-016,Noel Kipchoge,HR,HR Coordinator,active,2025-07-07,,44000,USD,
+EMP-017,Olivia Nduta,Operations,Operations Manager,active,2018-04-02,,128000,USD,2025-09-01
+EMP-018,Peter Wekesa,Operations,Logistics Coordinator,active,2021-06-14,,69000,USD,2025-05-20
+EMP-019,Quinn Barasa,Operations,Supply Chain Analyst,active,2023-10-30,,74000,USD,2025-02-28
+EMP-020,Rachel Simiyu,Operations,Operations Coordinator,active,2025-11-11,,51000,USD,
+EMP-021,Samuel Luhya,Marketing,Marketing Manager,active,2020-01-20,,122000,USD,2025-07-01
+EMP-022,Tabitha Moraa,Marketing,Content Strategist,active,2022-05-09,,71000,USD,2025-04-15
+EMP-023,Umar Hassan,Marketing,Digital Marketing Specialist,active,2024-02-26,,65000,USD,2025-01-20
+EMP-024,Vivian Kerubo,Marketing,Marketing Coordinator,active,2025-10-13,,47000,USD,
+EMP-025,Walter Ngugi,Engineering,DevOps Engineer,active,2021-08-16,,98000,USD,2025-06-30
+EMP-026,Xenia Atieno,Engineering,QA Engineer,active,2023-01-09,,75000,USD,2024-11-15
+EMP-027,Yusuf Abdi,Engineering,Backend Engineer,on_leave,2022-03-21,,89000,USD,2024-06-01
+EMP-028,Zara Muthoni,Sales,Enterprise Account Executive,active,2023-07-04,,92000,USD,2025-08-20
+EMP-029,Aaron Rotich,Finance,Treasury Analyst,terminated,2020-10-05,2025-12-31,81000,USD,2024-10-01
+EMP-030,Beatrice Auma,Engineering,Principal Engineer,active,2016-06-18,,160000,USD,2025-10-10

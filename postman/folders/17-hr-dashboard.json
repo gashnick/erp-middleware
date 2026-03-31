@@ -1,4 +1,310 @@
 {
-  "name": "HR Dashboard",
-  "item": []
+  "name": "17 - HR Dashboard",
+  "item": [
+    {
+      "name": "REST",
+      "item": [
+        {
+          "name": "Get Headcount",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/hr/headcount",
+              "host": ["{{baseUrl}}"],
+              "path": ["hr", "headcount"]
+            }
+          }
+        },
+        {
+          "name": "Get Headcount (filtered by dept + date range)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/hr/headcount?department=Engineering&from=2026-01-01&to=2026-03-31",
+              "host": ["{{baseUrl}}"],
+              "path": ["hr", "headcount"],
+              "query": [
+                { "key": "department", "value": "Engineering" },
+                { "key": "from", "value": "2026-01-01" },
+                { "key": "to", "value": "2026-03-31" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Headcount Trend",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/hr/headcount/trend?months=12",
+              "host": ["{{baseUrl}}"],
+              "path": ["hr", "headcount", "trend"],
+              "query": [{ "key": "months", "value": "12" }]
+            }
+          }
+        },
+        {
+          "name": "Get Attrition",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/hr/attrition?from=2026-01-01&to=2026-03-31",
+              "host": ["{{baseUrl}}"],
+              "path": ["hr", "attrition"],
+              "query": [
+                { "key": "from", "value": "2026-01-01" },
+                { "key": "to", "value": "2026-03-31" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Attrition Risk",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/hr/attrition/risk",
+              "host": ["{{baseUrl}}"],
+              "path": ["hr", "attrition", "risk"]
+            }
+          }
+        },
+        {
+          "name": "Get Payroll Summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/hr/payroll/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["hr", "payroll", "summary"]
+            }
+          }
+        },
+        {
+          "name": "Get Payroll Summary (by dept)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/hr/payroll/summary?department=Engineering",
+              "host": ["{{baseUrl}}"],
+              "path": ["hr", "payroll", "summary"],
+              "query": [{ "key": "department", "value": "Engineering" }]
+            }
+          }
+        },
+        {
+          "name": "Get Payroll Breakdown",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/hr/payroll/breakdown",
+              "host": ["{{baseUrl}}"],
+              "path": ["hr", "payroll", "breakdown"]
+            }
+          }
+        },
+        {
+          "name": "List Employees",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/hr/employees",
+              "host": ["{{baseUrl}}"],
+              "path": ["hr", "employees"]
+            }
+          }
+        },
+        {
+          "name": "List Employees (filtered)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/hr/employees?department=Engineering&status=active&limit=20&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["hr", "employees"],
+              "query": [
+                { "key": "department", "value": "Engineering" },
+                { "key": "status", "value": "active" },
+                { "key": "limit", "value": "20" },
+                { "key": "offset", "value": "0" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Upsert Employee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.id) pm.collectionVariables.set('employeeId', res.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"externalId\": \"EMP-001\",\n  \"name\": \"Jane Doe\",\n  \"department\": \"Engineering\",\n  \"role\": \"Senior Engineer\",\n  \"startDate\": \"2025-01-15\",\n  \"salary\": 95000,\n  \"currency\": \"USD\",\n  \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/hr/employees",
+              "host": ["{{baseUrl}}"],
+              "path": ["hr", "employees"]
+            }
+          }
+        },
+        {
+          "name": "Upsert Employee (update existing)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"externalId\": \"EMP-001\",\n  \"name\": \"Jane Doe\",\n  \"department\": \"Engineering\",\n  \"role\": \"Staff Engineer\",\n  \"startDate\": \"2025-01-15\",\n  \"salary\": 110000,\n  \"currency\": \"USD\",\n  \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/hr/employees",
+              "host": ["{{baseUrl}}"],
+              "path": ["hr", "employees"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "GraphQL",
+      "item": [
+        {
+          "name": "GQL — headcount",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query { headcount }\"\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": ["{{graphqlUrl}}"]
+            }
+          }
+        },
+        {
+          "name": "GQL — headcount (with args)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query($department: String, $from: String, $to: String) { headcount(department: $department, from: $from, to: $to) }\",\n  \"variables\": {\n    \"department\": \"Engineering\",\n    \"from\": \"2026-01-01\",\n    \"to\": \"2026-03-31\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": ["{{graphqlUrl}}"]
+            }
+          }
+        },
+        {
+          "name": "GQL — headcountTrend",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query($months: Float) { headcountTrend(months: $months) }\",\n  \"variables\": {\n    \"months\": 12\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": ["{{graphqlUrl}}"]
+            }
+          }
+        },
+        {
+          "name": "GQL — attrition",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query($from: String, $to: String) { attrition(from: $from, to: $to) }\",\n  \"variables\": {\n    \"from\": \"2026-01-01\",\n    \"to\": \"2026-03-31\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": ["{{graphqlUrl}}"]
+            }
+          }
+        },
+        {
+          "name": "GQL — payrollSummary",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query($department: String) { payrollSummary(department: $department) }\",\n  \"variables\": {\n    \"department\": null\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": ["{{graphqlUrl}}"]
+            }
+          }
+        },
+        {
+          "name": "GQL — employees",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query($department: String, $status: String, $limit: Float, $offset: Float) { employees(department: $department, status: $status, limit: $limit, offset: $offset) }\",\n  \"variables\": {\n    \"department\": null,\n    \"status\": \"active\",\n    \"limit\": 50,\n    \"offset\": 0\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": ["{{graphqlUrl}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
 }

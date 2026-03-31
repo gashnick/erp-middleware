@@ -7,12 +7,14 @@ import {
   IExpense,
   IBankTransaction,
   IProduct,
+  IEmployee,
   IQuarantineRecord,
   TransformResult,
+  EmployeeStatus,
 } from '../interfaces/tenant-entities.interface';
 
 // 🚀 Match the type from EtlService
-type EntityType = 'invoice' | 'contact' | 'expense' | 'bank_transaction' | 'product';
+type EntityType = 'invoice' | 'contact' | 'expense' | 'bank_transaction' | 'product' | 'employee';
 
 @Injectable()
 export class EtlTransformerService {
@@ -57,6 +59,41 @@ export class EtlTransformerService {
     overdue: 'overdue',
     void: 'void',
   };
+
+  /**
+   * Canonical employee status values accepted by the employees table CHECK constraint.
+   * Any raw value not in this set falls back to 'active'.
+   */
+  private readonly VALID_EMPLOYEE_STATUSES = new Set<EmployeeStatus>([
+    'active',
+    'inactive',
+    'on_leave',
+    'terminated',
+  ]);
+
+  /**
+   * Field aliases accepted for each employee column.
+   * Priority: first truthy value in each array wins.
+   */
+  private readonly EMPLOYEE_FIELD_ALIASES = {
+    external_id: ['external_id', 'employee_id', 'employeeId', 'emp_id', 'id'],
+    name: ['name', 'full_name', 'fullName', 'employee_name', 'employeeName'],
+    department: ['department', 'dept', 'division', 'team'],
+    role: ['role', 'job_title', 'jobTitle', 'title', 'position'],
+    status: ['status', 'employment_status', 'employmentStatus', 'emp_status'],
+    start_date: ['start_date', 'startDate', 'hire_date', 'hireDate', 'joined_at', 'joinedAt'],
+    end_date: ['end_date', 'endDate', 'termination_date', 'terminationDate', 'left_at', 'leftAt'],
+    salary: [
+      'salary',
+      'base_salary',
+      'baseSalary',
+      'annual_salary',
+      'annualSalary',
+      'compensation',
+    ],
+    currency: ['currency', 'salary_currency', 'salaryCurrency', 'pay_currency'],
+  } as const;
+
   private readonly CATEGORY_VENDOR_MAP: Record<string, string> = {
     PAYROLL: 'Payroll Services',
     INFRASTRUCTURE: 'Infrastructure Provider',
@@ -89,7 +126,6 @@ export class EtlTransformerService {
 
       const errors = this.validateInvoice(normalized, i + 1);
       if (errors.length > 0) {
-        // 🚀 Tag as 'invoice'
         quarantine.push(this.makeQuarantine(source, row, errors, 'invoice'));
         return;
       }
@@ -175,7 +211,7 @@ export class EtlTransformerService {
         currency: (row.currency ?? 'USD').toUpperCase(),
         expense_date: row.expense_date ?? row.date ?? row.expenseDate,
         description: row.description ?? row.notes,
-        vendorName: this.resolveVendorName(row, category), // ← new
+        vendorName: this.resolveVendorName(row, category),
       };
 
       const errors: string[] = [];
@@ -194,7 +230,7 @@ export class EtlTransformerService {
         currency: normalized.currency,
         expense_date: new Date(normalized.expense_date),
         description: normalized.description ? String(normalized.description).trim() : undefined,
-        vendorName: normalized.vendorName, // ← new — EtlService converts to vendor_id
+        vendorName: normalized.vendorName,
         metadata: { source, sync_date: new Date().toISOString() },
       });
     });
@@ -228,7 +264,6 @@ export class EtlTransformerService {
       if (isNaN(amt) || amt <= 0) errors.push(`Row ${i + 1}: Invalid amount`);
 
       if (errors.length > 0) {
-        // 🚀 Tag as 'bank_transaction'
         quarantine.push(this.makeQuarantine(source, row, errors, 'bank_transaction'));
         return;
       }
@@ -280,6 +315,120 @@ export class EtlTransformerService {
     return { valid, quarantine };
   }
 
+  // ── Employees ──────────────────────────────────────────────────────────────
+
+  /**
+   * Transforms raw CSV rows into validated IEmployee objects.
+   *
+   * Field resolution uses EMPLOYEE_FIELD_ALIASES — the first truthy value
+   * found across the alias list is used, so CSVs exported from different
+   * HR systems (BambooHR, Workday, Odoo, manual) all parse correctly without
+   * any pre-processing by the caller.
+   *
+   * Validation rules:
+   *   - external_id: required (unique key for ON CONFLICT upsert)
+   *   - name:        required
+   *   - department:  required
+   *   - role:        required
+   *   - start_date:  required, must parse to a valid Date
+   *   - salary:      required, must be a non-negative finite number
+   *
+   * Soft-defaults (never quarantine):
+   *   - status   → 'active' if missing or unrecognised
+   *   - currency → 'USD' if missing
+   *   - end_date → null if missing (still employed)
+   */
+  transformEmployees(rawData: any[], source: string): TransformResult<IEmployee> {
+    const valid: IEmployee[] = [];
+    const quarantine: Partial<IQuarantineRecord>[] = [];
+
+    rawData.forEach((row, i) => {
+      const rowNum = i + 1;
+
+      // ── Field resolution via alias table ─────────────────────────────────
+      const resolve = (field: keyof typeof this.EMPLOYEE_FIELD_ALIASES): any => {
+        for (const alias of this.EMPLOYEE_FIELD_ALIASES[field]) {
+          const val = row[alias];
+          if (val !== undefined && val !== null && String(val).trim() !== '') return val;
+        }
+        return undefined;
+      };
+
+      const raw = {
+        external_id: resolve('external_id'),
+        name: resolve('name'),
+        department: resolve('department'),
+        role: resolve('role'),
+        status: resolve('status'),
+        start_date: resolve('start_date'),
+        end_date: resolve('end_date'),
+        salary: resolve('salary'),
+        currency: resolve('currency'),
+      };
+
+      // ── Validation ────────────────────────────────────────────────────────
+      const errors: string[] = [];
+
+      if (!raw.external_id) errors.push(`Row ${rowNum}: Missing external_id / employee_id`);
+      if (!raw.name) errors.push(`Row ${rowNum}: Missing name`);
+      if (!raw.department) errors.push(`Row ${rowNum}: Missing department`);
+      if (!raw.role) errors.push(`Row ${rowNum}: Missing role`);
+
+      if (!raw.start_date) {
+        errors.push(`Row ${rowNum}: Missing start_date`);
+      } else if (isNaN(new Date(raw.start_date).getTime())) {
+        errors.push(`Row ${rowNum}: Invalid start_date '${raw.start_date}'`);
+      }
+
+      const salaryNum = parseFloat(raw.salary);
+      if (raw.salary === undefined || raw.salary === null || raw.salary === '') {
+        errors.push(`Row ${rowNum}: Missing salary`);
+      } else if (isNaN(salaryNum) || salaryNum < 0) {
+        errors.push(
+          `Row ${rowNum}: Invalid salary '${raw.salary}' — must be a non-negative number`,
+        );
+      }
+
+      if (errors.length > 0) {
+        quarantine.push(this.makeQuarantine(source, row, errors, 'employee'));
+        return;
+      }
+
+      // ── Normalisation ─────────────────────────────────────────────────────
+
+      // status — soft-default to 'active' for unrecognised values
+      const rawStatus = String(raw.status ?? '')
+        .toLowerCase()
+        .trim()
+        .replace(/[\s-]+/g, '_') as EmployeeStatus;
+      const status: EmployeeStatus = this.VALID_EMPLOYEE_STATUSES.has(rawStatus)
+        ? rawStatus
+        : 'active';
+
+      // end_date — null when employee is still active or field absent
+      let end_date: Date | null = null;
+      if (raw.end_date) {
+        const parsed = new Date(raw.end_date);
+        end_date = isNaN(parsed.getTime()) ? null : parsed;
+      }
+
+      valid.push({
+        external_id: String(raw.external_id).trim(),
+        name: String(raw.name).trim(),
+        department: String(raw.department).trim(),
+        role: String(raw.role).trim(),
+        status,
+        start_date: new Date(raw.start_date),
+        end_date,
+        salary: salaryNum,
+        currency: raw.currency ? String(raw.currency).toUpperCase().trim() : 'USD',
+        metadata: { source, sync_date: new Date().toISOString() },
+      });
+    });
+
+    return { valid, quarantine };
+  }
+
   // ── Shared helpers ─────────────────────────────────────────────────────────
 
   private normalizeStatus(raw: string): string {
@@ -299,9 +448,6 @@ export class EtlTransformerService {
     return errors;
   }
 
-  /**
-   * 🚀 Added entity_type to the quarantine object
-   */
   private makeQuarantine(
     source: string,
     raw_data: any,
