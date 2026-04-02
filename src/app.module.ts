@@ -34,6 +34,7 @@ import { SubscriptionModule } from '@subscription/subscription.module';
 import { AlertModule } from '@alerts/alert.module';
 import { HrModule } from './hr/hr.module';
 import { OpsModule } from '@ops/ops.module';
+import { ReportsModule } from 'reports/reports.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { OpsModule } from '@ops/ops.module';
     AlertModule,
     HrModule,
     OpsModule,
+    ReportsModule,
   ],
   controllers: [AppController, DashboardController],
   providers: [

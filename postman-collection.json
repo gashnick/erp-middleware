@@ -3431,6 +3431,455 @@
           ]
         }
       ]
+    },
+    {
+      "name": "19 - Reports & Exports",
+      "item": [
+        {
+          "name": "REST",
+          "item": [
+            {
+              "name": "Create Schedule — Weekly PDF",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "if (res.id) pm.collectionVariables.set('scheduleId', res.id);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Weekly Management Report\",\n  \"format\": \"pdf\",\n  \"interval\": \"weekly\",\n  \"hour\": 8,\n  \"dayOfWeek\": 1,\n  \"timezone\": \"Africa/Nairobi\",\n  \"recipients\": [\"manager@acme.com\"],\n  \"sections\": [\"finance\", \"hr\", \"ops\"]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/reports/schedules",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "schedules"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Schedule — Daily CSV (advanced cron)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Daily Finance Snapshot\",\n  \"format\": \"csv\",\n  \"cron\": \"0 7 * * *\",\n  \"timezone\": \"UTC\",\n  \"recipients\": [\"finance@acme.com\"],\n  \"sections\": [\"finance\"]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/reports/schedules",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "schedules"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Schedule — Monthly XLSX",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Monthly Board Report\",\n  \"format\": \"xlsx\",\n  \"interval\": \"monthly\",\n  \"hour\": 9,\n  \"dayOfMonth\": 1,\n  \"timezone\": \"UTC\",\n  \"recipients\": [\"ceo@acme.com\", \"cfo@acme.com\"],\n  \"sections\": [\"finance\", \"hr\", \"ops\"]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/reports/schedules",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "schedules"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Schedules",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/schedules",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "schedules"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Schedule",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"hour\": 9,\n  \"dayOfWeek\": 1,\n  \"recipients\": [\"manager@acme.com\", \"director@acme.com\"]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/reports/schedules/{{scheduleId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "schedules",
+                    "{{scheduleId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete (Deactivate) Schedule",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/schedules/{{scheduleId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "schedules",
+                    "{{scheduleId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Generate Report On-Demand — PDF",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const token = pm.response.headers.get('X-Export-Token');",
+                      "if (token) pm.collectionVariables.set('exportToken', token);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Q1 2026 Management Report\",\n  \"format\": \"pdf\",\n  \"sections\": [\"finance\", \"hr\", \"ops\"]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/reports/generate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "generate"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Generate Report On-Demand — CSV",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Finance Export\",\n  \"format\": \"csv\",\n  \"sections\": [\"finance\"]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/reports/generate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "generate"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Generate Report On-Demand — XLSX",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Full Business Export\",\n  \"format\": \"xlsx\",\n  \"sections\": [\"finance\", \"hr\", \"ops\"]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/reports/generate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "generate"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Download by Token (no auth)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/download/{{exportToken}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "download",
+                    "{{exportToken}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Export Audit Logs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/reports/exports?limit=20&offset=0",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reports",
+                    "exports"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    },
+                    {
+                      "key": "offset",
+                      "value": "0"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "GraphQL",
+          "item": [
+            {
+              "name": "GQL — reportSchedules",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"query { reportSchedules }\"\n}"
+                },
+                "url": {
+                  "raw": "{{graphqlUrl}}",
+                  "host": [
+                    "{{graphqlUrl}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "GQL — exportLogs",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"query($limit: Float, $offset: Float) { exportLogs(limit: $limit, offset: $offset) }\",\n  \"variables\": { \"limit\": 20, \"offset\": 0 }\n}"
+                },
+                "url": {
+                  "raw": "{{graphqlUrl}}",
+                  "host": [
+                    "{{graphqlUrl}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "GQL — createReportSchedule",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation($name: String!, $format: String!, $recipients: [String!]!, $interval: String, $hour: Float, $dayOfWeek: Float, $timezone: String, $sections: [String!]) { createReportSchedule(name: $name, format: $format, recipients: $recipients, interval: $interval, hour: $hour, dayOfWeek: $dayOfWeek, timezone: $timezone, sections: $sections) }\",\n  \"variables\": {\n    \"name\": \"Weekly Report via GQL\",\n    \"format\": \"pdf\",\n    \"recipients\": [\"manager@acme.com\"],\n    \"interval\": \"weekly\",\n    \"hour\": 8,\n    \"dayOfWeek\": 1,\n    \"timezone\": \"UTC\",\n    \"sections\": [\"finance\", \"hr\", \"ops\"]\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{graphqlUrl}}",
+                  "host": [
+                    "{{graphqlUrl}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "GQL — generateReport",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation($format: String!, $sections: [String!], $name: String) { generateReport(format: $format, sections: $sections, name: $name) }\",\n  \"variables\": {\n    \"format\": \"pdf\",\n    \"sections\": [\"finance\", \"hr\", \"ops\"],\n    \"name\": \"GQL On-Demand Report\"\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{graphqlUrl}}",
+                  "host": [
+                    "{{graphqlUrl}}"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

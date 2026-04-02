@@ -1,4 +1,5 @@
 {
+  //"$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "module": "commonjs",
     "declaration": true,
@@ -46,7 +47,8 @@
       "@alerts/*": ["src/alerts/*"],
       "@notifications/*": ["src/notifications/*"],
       "@hr/*": ["src/hr/*"],
-      "@ops/*": ["src/ops/*"]
+      "@ops/*": ["src/ops/*"],
+      "reports/*": ["src/reports/*"]
     }
   }
 }
