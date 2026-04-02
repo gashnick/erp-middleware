@@ -45,7 +45,8 @@
       "@subscription-plans/*": ["src/subscription-plans/*"],
       "@alerts/*": ["src/alerts/*"],
       "@notifications/*": ["src/notifications/*"],
-      "@hr/*": ["src/hr/*"]
+      "@hr/*": ["src/hr/*"],
+      "@ops/*": ["src/ops/*"]
     }
   }
 }

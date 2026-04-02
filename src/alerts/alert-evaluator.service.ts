@@ -4,10 +4,11 @@
 // against live tenant data, and triggers alert events when thresholds are breached.
 //
 // Per-metric evaluators:
-//   cash_balance         — SUM(credits) - SUM(debits) from bank_transactions
-//   expense_spike        — checks anomalies table for recent EXPENSE_SPIKE entries
+//   cash_balance          — SUM(credits) - SUM(debits) from bank_transactions
+//   expense_spike         — checks anomalies table for recent EXPENSE_SPIKE entries
 //   overdue_invoice_count — COUNT of overdue invoices
-//   unusual_payment      — checks anomalies table for recent UNUSUAL_PAYMENT entries
+//   unusual_payment       — checks anomalies table for recent UNUSUAL_PAYMENT entries
+//   sla_breach            — count of breached SLA configs (via OpsDashboardService)
 //
 // Deduplication:
 //   An alert event is only created if no 'open' event exists for the same rule.
@@ -18,6 +19,7 @@ import { TenantQueryRunnerService } from '@database/tenant-query-runner.service'
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { AlertRule, AlertEvent, AlertMetric } from './alert.types';
+import { OpsDashboardService } from '@ops/ops-dashboard.service';
 
 @Injectable()
 export class AlertEvaluatorService {
@@ -74,6 +76,7 @@ export class AlertEvaluatorService {
   constructor(
     private readonly tenantDb: TenantQueryRunnerService,
     @InjectQueue('alert-evaluation') private readonly alertQueue: Queue,
+    private readonly opsDashboard: OpsDashboardService,
   ) {}
 
   /**
@@ -202,8 +205,7 @@ export class AlertEvaluatorService {
           return Number(rows[0]?.count ?? 0);
         }
         case 'sla_breach':
-          // Placeholder — will be implemented in Stream 4 (Ops Dashboard)
-          return null;
+          return this.opsDashboard.slaBreachCount();
         default:
           return null;
       }

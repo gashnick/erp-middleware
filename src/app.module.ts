@@ -33,6 +33,7 @@ import { AdminModule } from './admin/admin.module';
 import { SubscriptionModule } from '@subscription/subscription.module';
 import { AlertModule } from '@alerts/alert.module';
 import { HrModule } from './hr/hr.module';
+import { OpsModule } from '@ops/ops.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { HrModule } from './hr/hr.module';
     SubscriptionModule,
     AlertModule,
     HrModule,
+    OpsModule,
   ],
   controllers: [AppController, DashboardController],
   providers: [

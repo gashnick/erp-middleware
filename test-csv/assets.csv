@@ -1,0 +1,16 @@
+external_id,name,category,status,uptime_pct,last_service,next_service
+ASSET-001,Web Server 01,Infrastructure,operational,99.2,2026-01-10,2026-07-10
+ASSET-002,Web Server 02,Infrastructure,operational,98.7,2026-01-10,2026-07-10
+ASSET-003,Database Primary,Infrastructure,operational,99.9,2026-02-01,2026-08-01
+ASSET-004,Database Replica,Infrastructure,maintenance,87.3,2026-03-15,2026-04-15
+ASSET-005,Load Balancer,Infrastructure,operational,100.0,2026-02-20,2026-08-20
+ASSET-006,Delivery Van 01,Fleet,operational,95.1,2026-01-05,2026-04-05
+ASSET-007,Delivery Van 02,Fleet,offline,0.0,2025-11-01,2026-01-01
+ASSET-008,Delivery Van 03,Fleet,operational,91.4,2026-02-14,2026-05-14
+ASSET-009,Forklift A,Warehouse,operational,88.0,2026-01-20,2026-04-20
+ASSET-010,Forklift B,Warehouse,maintenance,72.5,2026-03-20,2026-04-20
+ASSET-011,Conveyor Belt 01,Warehouse,operational,94.3,2026-02-01,2026-05-01
+ASSET-012,Conveyor Belt 02,Warehouse,offline,0.0,2025-12-15,2026-02-15
+ASSET-013,Office HVAC,Facilities,operational,97.8,2026-01-15,2026-07-15
+ASSET-014,Office Printer,Facilities,operational,85.0,2026-02-28,2026-08-28
+ASSET-015,Security System,Facilities,operational,99.5,2026-03-01,2026-09-01

@@ -1,0 +1,264 @@
+{
+  "name": "18 - Ops Dashboard",
+  "item": [
+    {
+      "name": "REST",
+      "item": [
+        {
+          "name": "Get Inventory Summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/ops/inventory/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["ops", "inventory", "summary"]
+            }
+          }
+        },
+        {
+          "name": "Get Assets",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/ops/assets",
+              "host": ["{{baseUrl}}"],
+              "path": ["ops", "assets"]
+            }
+          }
+        },
+        {
+          "name": "Get Assets (filtered by status)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/ops/assets?status=offline&limit=20&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["ops", "assets"],
+              "query": [
+                { "key": "status", "value": "offline" },
+                { "key": "limit", "value": "20" },
+                { "key": "offset", "value": "0" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Assets (filtered by category)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/ops/assets?category=Infrastructure",
+              "host": ["{{baseUrl}}"],
+              "path": ["ops", "assets"],
+              "query": [{ "key": "category", "value": "Infrastructure" }]
+            }
+          }
+        },
+        {
+          "name": "Get Orders Pipeline",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/ops/orders/pipeline",
+              "host": ["{{baseUrl}}"],
+              "path": ["ops", "orders", "pipeline"]
+            }
+          }
+        },
+        {
+          "name": "Get SLA Status",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/ops/sla/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["ops", "sla", "status"]
+            }
+          }
+        },
+        {
+          "name": "Get SLA Breaches",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tenantToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/ops/sla/breaches",
+              "host": ["{{baseUrl}}"],
+              "path": ["ops", "sla", "breaches"]
+            }
+          }
+        },
+        {
+          "name": "Create SLA Config",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.id) pm.collectionVariables.set('slaConfigId', res.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invoice Processing Time\",\n  \"metric\": \"invoice_processing_hours\",\n  \"targetValue\": 24,\n  \"warningPct\": 80\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ops/sla/configs",
+              "host": ["{{baseUrl}}"],
+              "path": ["ops", "sla", "configs"]
+            }
+          }
+        },
+        {
+          "name": "Create SLA Config — Overdue Invoices",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Max Overdue Invoices\",\n  \"metric\": \"overdue_invoice_count\",\n  \"targetValue\": 10,\n  \"warningPct\": 70\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ops/sla/configs",
+              "host": ["{{baseUrl}}"],
+              "path": ["ops", "sla", "configs"]
+            }
+          }
+        },
+        {
+          "name": "Create SLA Config — Asset Uptime",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Asset Uptime SLA\",\n  \"metric\": \"avg_asset_uptime_pct\",\n  \"targetValue\": 95,\n  \"warningPct\": 90\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ops/sla/configs",
+              "host": ["{{baseUrl}}"],
+              "path": ["ops", "sla", "configs"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "GraphQL",
+      "item": [
+        {
+          "name": "GQL — inventorySummary",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query { inventorySummary }\"\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": ["{{graphqlUrl}}"]
+            }
+          }
+        },
+        {
+          "name": "GQL — assetStatus",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query($category: String, $status: String, $limit: Float, $offset: Float) { assetStatus(category: $category, status: $status, limit: $limit, offset: $offset) }\",\n  \"variables\": {\n    \"category\": null,\n    \"status\": null,\n    \"limit\": 50,\n    \"offset\": 0\n  }\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": ["{{graphqlUrl}}"]
+            }
+          }
+        },
+        {
+          "name": "GQL — ordersPipeline",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query { ordersPipeline }\"\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": ["{{graphqlUrl}}"]
+            }
+          }
+        },
+        {
+          "name": "GQL — slaStatus",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query { slaStatus }\"\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": ["{{graphqlUrl}}"]
+            }
+          }
+        },
+        {
+          "name": "GQL — slaBreaches",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tenantToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query { slaBreaches }\"\n}"
+            },
+            "url": {
+              "raw": "{{graphqlUrl}}",
+              "host": ["{{graphqlUrl}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

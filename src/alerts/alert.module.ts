@@ -13,6 +13,7 @@ import { AlertSchedulerService } from './alert-scheduler.service';
 import { AlertProcessor } from './alert.processor';
 import { AlertController } from './alert.controller';
 import { AlertResolver } from './alert.resolver';
+import { OpsModule } from '@ops/ops.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AlertResolver } from './alert.resolver';
     SubscriptionModule, // FeatureFlagService for alert_rules limit
     ScheduleModule.forRoot(), // @Cron decorator support
     BullModule.registerQueue({ name: 'alert-evaluation' }),
+    OpsModule,
   ],
   providers: [
     AlertRuleService,
