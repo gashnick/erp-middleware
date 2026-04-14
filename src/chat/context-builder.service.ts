@@ -2,7 +2,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AnomalyService } from '../anomaly/anomaly.service';
 import { PiiRedactorService } from './guardrails/pii-redactor.service';
-import { DynamicDataFetcherService } from './dynamic-query/dynamic-data-fetcher.service';
+import {
+  DynamicDataFetcherService,
+  DynamicFetchResult,
+} from './dynamic-query/dynamic-data-fetcher.service';
 import { GraphQueryService } from '../knowledgeGraph/graph-query.service';
 import { ContextBundle } from './chat.types';
 import { getTenantContext, runWithTenantContext } from '@common/context/tenant-context';
@@ -42,8 +45,14 @@ export class ContextBuilderService {
       },
       () =>
         Promise.all([
-          this.dynamicFetcher.fetchForQuestion(question),
-          this.anomaly.listAnomalies(undefined, 0.6),
+          this.dynamicFetcher.fetchForQuestion(question).catch((err) => {
+            this.logger.warn(`Dynamic data fetch failed (non-fatal): ${err.message}`);
+            return this.fallbackSnapshotResult();
+          }),
+          this.anomaly.listAnomalies(undefined, 0.6).catch((err) => {
+            this.logger.warn(`Anomaly detection failed (non-fatal): ${err.message}`);
+            return [];
+          }),
           // KG entity search — non-fatal, returns [] if KG not yet populated
           this.graphQuery.findRelevantEntities(question).catch((err) => {
             this.logger.warn(`KG entity search failed (non-fatal): ${err.message}`);
@@ -105,6 +114,20 @@ export class ContextBuilderService {
       entityRefs: relevantEntities.map((e) => e.id),
       tokenCount,
       queryResults: fetchResult.queryResults ?? [],
+    };
+  }
+
+  /**
+   * Fallback when dynamic data fetch fails.
+   * Returns a minimal result structure so context building can continue.
+   */
+  private fallbackSnapshotResult(): DynamicFetchResult {
+    return {
+      formattedText: 'Financial data is temporarily unavailable.',
+      intentsUsed: [],
+      tokenEstimate: 10,
+      usedDynamicQuery: false,
+      queryResults: [],
     };
   }
 }

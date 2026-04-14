@@ -32,7 +32,7 @@ export class UsersService {
    */
   async listUsers(tenantId?: string) {
     const params: any[] = [];
-    let query = `SELECT id, email, full_name as "fullName", role, tenant_id as "tenantId", created_at FROM public.users`;
+    let query = `SELECT id, email, full_name as "fullName", role, phone_number as "phoneNumber", tenant_id as "tenantId", created_at FROM public.users`;
     if (tenantId) {
       query += ` WHERE tenant_id = $1`;
       params.push(tenantId);
@@ -48,7 +48,7 @@ export class UsersService {
   async update(
     tenantId: string,
     userId: string,
-    patch: Partial<{ fullName: string; role: string }>,
+    patch: Partial<{ fullName: string; role: string; phoneNumber: string }>,
   ) {
     // Ensure user exists in tenant
     const exists = await this.verifyUserInTenant(userId, tenantId);
@@ -67,6 +67,10 @@ export class UsersService {
       fields.push(`role = $${idx++}`);
       params.push(patch.role);
     }
+    if (patch.phoneNumber) {
+      fields.push(`phone_number = $${idx++}`);
+      params.push(patch.phoneNumber);
+    }
 
     if (fields.length === 0) return this.findById(userId);
 
@@ -77,7 +81,7 @@ export class UsersService {
     params.push(userId);
     params.push(effectiveTenantId);
 
-    const sql = `UPDATE public.users SET ${fields.join(', ')} WHERE id = $${idx++} AND tenant_id = $${idx++} RETURNING id, email, full_name as "fullName", role, tenant_id as "tenantId"`;
+    const sql = `UPDATE public.users SET ${fields.join(', ')} WHERE id = $${idx++} AND tenant_id = $${idx++} RETURNING id, email, full_name as "fullName", role, phone_number as "phoneNumber", tenant_id as "tenantId"`;
     const rows = await this.tenantDb.executePublic(sql, params);
     if (!rows || rows.length === 0) throw new NotFoundException(`User ${userId} not found`);
     return rows[0];
@@ -106,7 +110,7 @@ export class UsersService {
   async create(tenantId: string | null, dto: CreateUserDto) {
     // For public user creation (registration), don't try to get tenant context
     let activeTenantId = tenantId;
-    
+
     // Only try to get tenant context if tenantId is not explicitly provided
     if (activeTenantId === undefined) {
       try {
@@ -133,10 +137,10 @@ export class UsersService {
     try {
       // 🚀 Using executePublic to ensure we hit the global users table
       const result = await this.tenantDb.executePublic(
-        `INSERT INTO public.users (email, password_hash, full_name, role, tenant_id) 
-         VALUES ($1, $2, $3, $4, $5) 
-         RETURNING id, email, full_name as "fullName", role, tenant_id as "tenantId", created_at as "createdAt"`,
-        [dto.email, hash, dto.fullName, dto.role, activeTenantId],
+        `INSERT INTO public.users (email, password_hash, full_name, role, tenant_id, phone_number) 
+         VALUES ($1, $2, $3, $4, $5, $6) 
+         RETURNING id, email, full_name as "fullName", role, tenant_id as "tenantId", phone_number as "phoneNumber", created_at as "createdAt"`,
+        [dto.email, hash, dto.fullName, dto.role, activeTenantId, dto.phoneNumber || null],
       );
 
       return result[0];
@@ -152,7 +156,7 @@ export class UsersService {
   async findById(id: string) {
     const rows = await this.tenantDb.executePublic(
       `SELECT 
-        u.id, u.email, u.role, u.tenant_id as "tenantId", u.full_name as "fullName",
+        u.id, u.email, u.role, u.tenant_id as "tenantId", u.full_name as "fullName", u.phone_number as "phoneNumber",
         t.schema_name as "schemaName" 
       FROM public.users u
       LEFT JOIN public.tenants t ON u.tenant_id = t.id
@@ -171,7 +175,7 @@ export class UsersService {
     // Note: We include tenant_id in search to maintain isolation
     // for users shared across a global users table.
     let query = `
-      SELECT u.id, u.email, u.password_hash, u.role, u.tenant_id, t.schema_name as "schemaName"
+      SELECT u.id, u.email, u.password_hash, u.role, u.tenant_id, u.phone_number as "phoneNumber", t.schema_name as "schemaName"
       FROM public.users u
       LEFT JOIN public.tenants t ON u.tenant_id = t.id
       WHERE u.email = $1`;

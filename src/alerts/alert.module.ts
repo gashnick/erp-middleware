@@ -14,6 +14,7 @@ import { AlertProcessor } from './alert.processor';
 import { AlertController } from './alert.controller';
 import { AlertResolver } from './alert.resolver';
 import { OpsModule } from '@ops/ops.module';
+import { WhatsAppModule } from 'whatsapp/whatsapp.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { OpsModule } from '@ops/ops.module';
     ScheduleModule.forRoot(), // @Cron decorator support
     BullModule.registerQueue({ name: 'alert-evaluation' }),
     OpsModule,
+    WhatsAppModule,
   ],
   providers: [
     AlertRuleService,

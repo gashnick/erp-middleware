@@ -3880,6 +3880,455 @@
           ]
         }
       ]
+    },
+    {
+      "name": "20 - WhatsApp Channel",
+      "item": [
+        {
+          "name": "REST",
+          "item": [
+            {
+              "name": "Save WhatsApp Config",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "if (res.id) pm.collectionVariables.set('whatsappConfigId', res.id);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phoneNumber\": \"+254700000000\",\n  \"wabaId\": \"YOUR_WABA_ID\",\n  \"accessToken\": \"YOUR_META_ACCESS_TOKEN\",\n  \"appSecret\": \"YOUR_META_APP_SECRET\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/whatsapp/configs",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "whatsapp",
+                    "configs"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get WhatsApp Config",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/whatsapp/configs",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "whatsapp",
+                    "configs"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update WhatsApp Config",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"isActive\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/whatsapp/configs",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "whatsapp",
+                    "configs"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List WhatsApp Sessions",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/whatsapp/sessions?limit=20&offset=0",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "whatsapp",
+                    "sessions"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    },
+                    {
+                      "key": "offset",
+                      "value": "0"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Generate OTP (link phone)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "if (res.otp) pm.collectionVariables.set('whatsappOtp', res.otp);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/whatsapp/link",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "whatsapp",
+                    "link"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Link Status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/whatsapp/link/status",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "whatsapp",
+                    "link",
+                    "status"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Webhook — Simulate OTP Submission",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Hub-Signature-256",
+                    "value": "sha256=REPLACE_WITH_HMAC"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"id\": \"YOUR_WABA_ID\",\n      \"changes\": [\n        {\n          \"value\": {\n            \"messaging_product\": \"whatsapp\",\n            \"metadata\": {\n              \"display_phone_number\": \"+254700000000\",\n              \"phone_number_id\": \"YOUR_PHONE_NUMBER_ID\"\n            },\n            \"messages\": [\n              {\n                \"from\": \"+254711111111\",\n                \"id\": \"msg_otp_001\",\n                \"timestamp\": \"1712000002\",\n                \"type\": \"text\",\n                \"text\": {\n                  \"body\": \"{{whatsappOtp}}\"\n                }\n              }\n            ]\n          },\n          \"field\": \"messages\"\n        }\n      ]\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/whatsapp/webhook",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "whatsapp",
+                    "webhook"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Webhook — Meta Verification (GET)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/whatsapp/webhook?hub.mode=subscribe&hub.verify_token={{whatsappVerifyToken}}&hub.challenge=CHALLENGE_CODE",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "whatsapp",
+                    "webhook"
+                  ],
+                  "query": [
+                    {
+                      "key": "hub.mode",
+                      "value": "subscribe"
+                    },
+                    {
+                      "key": "hub.verify_token",
+                      "value": "{{whatsappVerifyToken}}"
+                    },
+                    {
+                      "key": "hub.challenge",
+                      "value": "CHALLENGE_CODE"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Webhook — Simulate Inbound Text Message",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Hub-Signature-256",
+                    "value": "sha256=REPLACE_WITH_HMAC"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"id\": \"YOUR_WABA_ID\",\n      \"changes\": [\n        {\n          \"value\": {\n            \"messaging_product\": \"whatsapp\",\n            \"metadata\": {\n              \"display_phone_number\": \"+254700000000\",\n              \"phone_number_id\": \"YOUR_PHONE_NUMBER_ID\"\n            },\n            \"contacts\": [\n              { \"profile\": { \"name\": \"Test User\" }, \"wa_id\": \"+254711111111\" }\n            ],\n            \"messages\": [\n              {\n                \"from\": \"+254711111111\",\n                \"id\": \"msg_001\",\n                \"timestamp\": \"1712000000\",\n                \"type\": \"text\",\n                \"text\": { \"body\": \"What is our current cash balance?\" }\n              }\n            ]\n          },\n          \"field\": \"messages\"\n        }\n      ]\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/whatsapp/webhook",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "whatsapp",
+                    "webhook"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Webhook — Simulate Help Command",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Hub-Signature-256",
+                    "value": "sha256=REPLACE_WITH_HMAC"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"id\": \"YOUR_WABA_ID\",\n      \"changes\": [\n        {\n          \"value\": {\n            \"messaging_product\": \"whatsapp\",\n            \"metadata\": {\n              \"display_phone_number\": \"+254700000000\",\n              \"phone_number_id\": \"YOUR_PHONE_NUMBER_ID\"\n            },\n            \"messages\": [\n              {\n                \"from\": \"+254711111111\",\n                \"id\": \"msg_002\",\n                \"timestamp\": \"1712000001\",\n                \"type\": \"text\",\n                \"text\": { \"body\": \"help\" }\n              }\n            ]\n          },\n          \"field\": \"messages\"\n        }\n      ]\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/whatsapp/webhook",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "whatsapp",
+                    "webhook"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "GraphQL",
+          "item": [
+            {
+              "name": "GQL — whatsappConfig",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"query { whatsappConfig }\"\n}"
+                },
+                "url": {
+                  "raw": "{{graphqlUrl}}",
+                  "host": [
+                    "{{graphqlUrl}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "GQL — whatsappSessions",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"query($limit: Float, $offset: Float) { whatsappSessions(limit: $limit, offset: $offset) }\",\n  \"variables\": { \"limit\": 20, \"offset\": 0 }\n}"
+                },
+                "url": {
+                  "raw": "{{graphqlUrl}}",
+                  "host": [
+                    "{{graphqlUrl}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "GQL — createWhatsAppConfig",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation($phoneNumber: String!, $wabaId: String!, $accessToken: String!, $appSecret: String!) { createWhatsAppConfig(phoneNumber: $phoneNumber, wabaId: $wabaId, accessToken: $accessToken, appSecret: $appSecret) }\",\n  \"variables\": {\n    \"phoneNumber\": \"+254700000000\",\n    \"wabaId\": \"YOUR_WABA_ID\",\n    \"accessToken\": \"YOUR_TOKEN\",\n    \"appSecret\": \"YOUR_SECRET\"\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{graphqlUrl}}",
+                  "host": [
+                    "{{graphqlUrl}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "GQL — whatsappLinkStatus",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"query { whatsappLinkStatus }\"\n}"
+                },
+                "url": {
+                  "raw": "{{graphqlUrl}}",
+                  "host": [
+                    "{{graphqlUrl}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "GQL — generateWhatsAppOtp",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{tenantToken}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"mutation { generateWhatsAppOtp }\"\n}"
+                },
+                "url": {
+                  "raw": "{{graphqlUrl}}",
+                  "host": [
+                    "{{graphqlUrl}}"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

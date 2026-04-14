@@ -12,10 +12,8 @@
 //   accessed_at is NULL until the link is first accessed.
 //   Links expire after 24 hours (checked at download time, not by a cleanup job).
 
-import { MigrationInterface, QueryRunner } from 'typeorm';
-
-export class ReportsAndExports1705000000009 implements MigrationInterface {
-  public async up(queryRunner: QueryRunner): Promise<void> {
+export class ReportsAndExports1705000000009 {
+  public async up(queryRunner: any): Promise<void> {
     await queryRunner.query(`
 
       -- ── Scheduled reports ──────────────────────────────────────────────────
@@ -72,7 +70,7 @@ export class ReportsAndExports1705000000009 implements MigrationInterface {
     `);
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
+  public async down(queryRunner: any): Promise<void> {
     await queryRunner.query(`
       DROP TABLE IF EXISTS "export_logs";
       DROP TABLE IF EXISTS "report_schedules";

@@ -35,6 +35,7 @@ import { AlertModule } from '@alerts/alert.module';
 import { HrModule } from './hr/hr.module';
 import { OpsModule } from '@ops/ops.module';
 import { ReportsModule } from 'reports/reports.module';
+import { WhatsAppModule } from 'whatsapp/whatsapp.module';
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { ReportsModule } from 'reports/reports.module';
     HrModule,
     OpsModule,
     ReportsModule,
+    WhatsAppModule,
   ],
   controllers: [AppController, DashboardController],
   providers: [

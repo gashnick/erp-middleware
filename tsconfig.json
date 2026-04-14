@@ -48,7 +48,8 @@
       "@notifications/*": ["src/notifications/*"],
       "@hr/*": ["src/hr/*"],
       "@ops/*": ["src/ops/*"],
-      "reports/*": ["src/reports/*"]
+      "reports/*": ["src/reports/*"],
+      "whatsapp/*": ["src/whatsapp/*"]
     }
   }
 }

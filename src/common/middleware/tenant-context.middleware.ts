@@ -102,9 +102,14 @@ export class TenantContextMiddleware implements NestMiddleware {
   }
 
   private isPublicRoute(path: string): boolean {
-    return ['/auth/', '/tenants', '/provisioning/', '/health', '/subscription-plans'].some(
-      (pattern) => path.includes(pattern),
-    );
+    return [
+      '/auth/',
+      '/tenants',
+      '/provisioning/',
+      '/health',
+      '/subscription-plans',
+      '/whatsapp/webhook',
+    ].some((pattern) => path.includes(pattern));
   }
 
   private isSystemRoute(path: string): boolean {

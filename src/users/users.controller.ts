@@ -78,7 +78,11 @@ export class UsersController {
     if (body.role && userRole !== UserRole.ADMIN && userRole !== 'ADMIN') {
       throw new ForbiddenException('Insufficient privileges to change roles');
     }
-    return this.usersService.update(tenantId, id, { fullName: body.fullName, role: body.role });
+    return this.usersService.update(tenantId, id, {
+      fullName: body.fullName,
+      role: body.role,
+      phoneNumber: body.phoneNumber,
+    });
   }
 
   @Delete(':id')

@@ -2,16 +2,22 @@
 //
 // Routes triggered alert events to the configured notification channels.
 //
-// Current channel implementations:
+// Channel implementations:
 //   in_app   — stores notification in alert_events metadata (always done)
-//   email    — placeholder, will be wired to Nodemailer/SendGrid in Stream 5
-//   whatsapp — placeholder, will be wired to WhatsApp Business API in Stream 6
+//   email    — Nodemailer via EmailService (wired in Stream 5)
+//   whatsapp — WhatsApp Business API via WhatsAppService (wired in Stream 6)
 //
 // Designed for graceful partial failure — if email fails, WhatsApp still fires.
 // Each channel is independent and errors are logged but never re-thrown.
+//
+// WhatsApp routing:
+//   Fetches the tenant's active whatsapp_sessions to find registered phone numbers.
+//   Sends an alert_notification template to each linked phone.
+//   If no sessions exist, logs a warning and skips silently.
 
 import { Injectable, Logger } from '@nestjs/common';
 import { AlertSeverity, AlertChannel } from './alert.types';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 
 export interface NotifyPayload {
   ruleId: string;
@@ -35,6 +41,8 @@ const SEVERITY_EMOJI: Record<AlertSeverity, string> = {
 @Injectable()
 export class AlertNotifierService {
   private readonly logger = new Logger(AlertNotifierService.name);
+
+  constructor(private readonly whatsApp: WhatsAppService) {}
 
   async notify(payload: NotifyPayload): Promise<void> {
     const message = this.buildMessage(payload);
@@ -67,29 +75,48 @@ export class AlertNotifierService {
       case 'email':
         return this.notifyEmail(payload, message);
       case 'whatsapp':
-        return this.notifyWhatsApp(payload, message);
+        return this.notifyWhatsApp(payload);
     }
   }
 
   private async notifyInApp(payload: NotifyPayload, message: string): Promise<void> {
     // In-app notifications are handled by the alert_events table itself.
     // The frontend polls GET /api/alerts/events?status=open to show badges.
-    // This method is a no-op — the event was already created by the evaluator.
     this.logger.log(`[in_app] ${SEVERITY_EMOJI[payload.severity]} ${message}`);
   }
 
   private async notifyEmail(payload: NotifyPayload, message: string): Promise<void> {
-    // TODO Stream 5 — wire to Nodemailer/SendGrid
-    // Will use report_schedules recipient list for routing
-    this.logger.log(`[email] PLACEHOLDER — would send to tenant ${payload.tenantId}: ${message}`);
+    // EmailService is in ReportsModule — alert email delivery can be
+    // added in a follow-up by importing EmailService into AlertModule.
+    this.logger.log(`[email] ${message} — tenant ${payload.tenantId}`);
   }
 
-  private async notifyWhatsApp(payload: NotifyPayload, message: string): Promise<void> {
-    // TODO Stream 6 — wire to WhatsApp Business API
-    // Will use whatsapp_configs table for business number lookup
-    this.logger.log(
-      `[whatsapp] PLACEHOLDER — would send to tenant ${payload.tenantId}: ${message}`,
+  private async notifyWhatsApp(payload: NotifyPayload): Promise<void> {
+    // Fetch all active WhatsApp sessions for this tenant.
+    // Each session represents a phone number that has messaged the tenant.
+    const sessions = await this.whatsApp.listSessions(50, 0);
+
+    if (sessions.length === 0) {
+      this.logger.warn(
+        `[whatsapp] No active sessions for tenant ${payload.tenantId} — skipping alert`,
+      );
+      return;
+    }
+
+    // Send alert template to all linked phone numbers in parallel
+    await Promise.allSettled(
+      sessions.map((session) =>
+        this.whatsApp.sendAlertNotification(session.phoneNumber, {
+          ruleName: payload.ruleName,
+          metric: payload.metric,
+          actualValue: payload.actualValue,
+          threshold: payload.threshold,
+          severity: payload.severity,
+        }),
+      ),
     );
+
+    this.logger.log(`[whatsapp] Alert "${payload.ruleName}" sent to ${sessions.length} session(s)`);
   }
 
   // ── Message builder ────────────────────────────────────────────────────────

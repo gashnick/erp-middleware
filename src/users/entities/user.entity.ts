@@ -62,6 +62,9 @@ export class User {
   @Column({ length: 20, default: 'active' })
   status: 'active' | 'inactive' | 'invited';
 
+  @Column({ name: 'phone_number', length: 20, nullable: true, unique: true })
+  phoneNumber: string;
+
   @Column({ name: 'last_login_at', type: 'timestamp', nullable: true })
   lastLoginAt: Date;
 

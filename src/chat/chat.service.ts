@@ -46,7 +46,7 @@ export class ChatService {
   }
 
   async handleMessage(
-    userId: string,
+    userId: string | null,
     sessionId: string,
     userText: string,
     req: { ip?: string; headers?: Record<string, string | string[] | undefined> },
@@ -74,6 +74,10 @@ export class ChatService {
 
     // ── Input redaction ───────────────────────────────────────────────────────
     const { redacted: safeInput } = await this.redactor.redact(userText, userId, sessionId, req);
+
+    if (!userId) {
+      throw new BadRequestException('User ID is required for chat messages.');
+    }
 
     // ── Context build — carries formatted text, entity graph, raw QueryResult[] ─
     const context = await this.contextSvc.build(userId, safeInput, sessionId, req);
@@ -127,7 +131,7 @@ export class ChatService {
     void this.audit
       .log({
         tenantId,
-        userId,
+        userId: userId || null, // Allow null for anonymous users (like WhatsApp)
         action: AuditAction.READ,
         resourceType: 'chat_session',
         resourceId: sessionId,

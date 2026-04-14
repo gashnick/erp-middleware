@@ -35,6 +35,16 @@ export class AuditLogService {
   constructor(private readonly tenantDb: TenantQueryRunnerService) {}
 
   /**
+   * Check if a string is a valid IP address (IPv4 or IPv6)
+   */
+  private isValidIpAddress(ip: string): boolean {
+    // Simple regex check for IPv4 and IPv6
+    const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    const ipv6Regex = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$/;
+    return ipv4Regex.test(ip) || ipv6Regex.test(ip);
+  }
+
+  /**
    * Create immutable audit log entry with cryptographic chaining
    */
   async log(entry: AuditLogEntry): Promise<void> {
@@ -55,6 +65,9 @@ export class AuditLogService {
         timestamp: new Date(),
       });
 
+      // Handle IP address - convert non-IP strings to null for INET column
+      const ipAddress = this.isValidIpAddress(entry.ipAddress) ? entry.ipAddress : null;
+
       // Insert audit log (append-only)
       await this.tenantDb.executePublic(
         `
@@ -69,7 +82,7 @@ export class AuditLogService {
           entry.action,
           entry.resourceType,
           entry.resourceId,
-          entry.ipAddress,
+          ipAddress,
           entry.userAgent,
           JSON.stringify(entry.metadata || {}),
           previousHash,
