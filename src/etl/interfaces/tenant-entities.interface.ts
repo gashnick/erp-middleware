@@ -59,6 +59,19 @@ export interface IProduct extends BaseTenantEntity {
   stock: number;
 }
 
+// ── Operations ─────────────────────────────────────────────────────────────
+
+export interface IAsset extends BaseTenantEntity {
+  external_id: string;
+  name: string;
+  category: string;
+  status: 'operational' | 'maintenance' | 'offline' | 'retired';
+  uptime_pct: number | null;
+  last_service: Date | null;
+  next_service: Date | null;
+  metadata?: Record<string, any>;
+}
+
 // ── Stream 3: HR ───────────────────────────────────────────────────────────
 
 export type EmployeeStatus = 'active' | 'inactive' | 'on_leave' | 'terminated';
@@ -81,7 +94,7 @@ export interface IEmployee extends BaseTenantEntity {
 
 export interface IQuarantineRecord extends BaseTenantEntity {
   source_type: string;
-  entity_type: 'invoice' | 'contact' | 'expense' | 'bank_transaction' | 'product' | 'employee';
+  entity_type: 'invoice' | 'contact' | 'expense' | 'bank_transaction' | 'product' | 'employee' | 'asset';
   raw_data: any;
   errors: any;
   status: 'pending' | 'resolved' | 'ignored';

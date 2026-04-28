@@ -23,6 +23,7 @@ import {
   IBankTransaction,
   IProduct,
   IEmployee,
+  IAsset,
 } from '../interfaces/tenant-entities.interface';
 
 export type EntityType =
@@ -31,7 +32,8 @@ export type EntityType =
   | 'expense'
   | 'bank_transaction'
   | 'product'
-  | 'employee';
+  | 'employee'
+  | 'asset';
 
 @Injectable()
 export class EtlService {
@@ -151,6 +153,7 @@ export class EtlService {
         bank_transaction: async () => this.transformer.transformBankTransactions(data, source),
         product: async () => this.transformer.transformProducts(data, source),
         employee: async () => this.transformer.transformEmployees(data, source),
+        asset: async () => this.transformer.transformAssets(data, source),
       };
 
       const handler = handlers[entityType];
@@ -188,6 +191,8 @@ export class EtlService {
         return this.upsertProducts(runner, data);
       case 'employee':
         return this.upsertEmployees(runner, data);
+      case 'asset':
+        return this.upsertAssets(runner, data);
     }
   }
 
@@ -394,6 +399,42 @@ export class EtlService {
          metadata   = EXCLUDED.metadata,
          updated_at = now()`,
       paramsWithMeta,
+    );
+  }
+
+  private async upsertAssets(runner: QueryRunner, assets: IAsset[]) {
+    const STRIDE = 8;
+    const params = assets.flatMap((a) => [
+      a.external_id,
+      a.name,
+      a.category,
+      a.status,
+      a.uptime_pct ?? null,
+      a.last_service ?? null,
+      a.next_service ?? null,
+      JSON.stringify(a.metadata ?? {}),
+    ]);
+
+    const placeholders = assets
+      .map((_, i) => {
+        const b = i * STRIDE;
+        return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6}, $${b + 7}, $${b + 8}::jsonb)`;
+      })
+      .join(', ');
+
+    await runner.query(
+      `INSERT INTO assets (external_id, name, category, status, uptime_pct, last_service, next_service, metadata)
+       VALUES ${placeholders}
+       ON CONFLICT (external_id) WHERE external_id IS NOT NULL DO UPDATE SET
+         name         = EXCLUDED.name,
+         category     = EXCLUDED.category,
+         status       = EXCLUDED.status,
+         uptime_pct   = EXCLUDED.uptime_pct,
+         last_service = EXCLUDED.last_service,
+         next_service = EXCLUDED.next_service,
+         metadata     = EXCLUDED.metadata,
+         updated_at   = now()`,
+      params,
     );
   }
 

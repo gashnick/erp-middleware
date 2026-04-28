@@ -15,7 +15,7 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { TenantGuard } from '@common/guards/tenant.guard';
 import { HrDashboardService } from './hr-dashboard.service';
-import { EmployeeFilters, CreateEmployeeDto } from './hr.types';
+import { EmployeeFilters, CreateEmployeeDto, CreateLeaveRequestDto, ApproveLeaveRequestDto } from './hr.types';
 import { FeatureFlagService } from '@subscription/feature-flag.service';
 import { getTenantContext } from '@common/context/tenant-context';
 
@@ -114,6 +114,50 @@ export class HrDashboardController {
       throw new BadRequestException('name, department, role, and startDate are required');
     }
     return this.hrService.upsertEmployee(dto);
+  }
+
+  // GET /api/hr/leave-requests?employeeId=...&status=pending&limit=50&offset=0
+  @Get('leave-requests')
+  async listLeaveRequests(
+    @Query('employeeId') employeeId?: string,
+    @Query('status') status?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    await this.checkFeature();
+    return this.hrService.listLeaveRequests(
+      employeeId,
+      status,
+      from,
+      to,
+      limit ? parseInt(limit, 10) : 50,
+      offset ? parseInt(offset, 10) : 0,
+    );
+  }
+
+  // POST /api/hr/leave-requests
+  @Post('leave-requests')
+  @HttpCode(HttpStatus.CREATED)
+  async createLeaveRequest(@Body() dto: CreateLeaveRequestDto) {
+    await this.checkFeature();
+    if (!dto.employeeId || !dto.leaveType || !dto.startDate || !dto.endDate) {
+      throw new BadRequestException('employeeId, leaveType, startDate, and endDate are required');
+    }
+    return this.hrService.createLeaveRequest(dto);
+  }
+
+  // PATCH /api/hr/leave-requests/:id
+  @Post('leave-requests/:id/approve')
+  async approveLeaveRequest(
+    @Query('id') id: string,
+    @Body() dto: ApproveLeaveRequestDto,
+  ) {
+    await this.checkFeature();
+    const ctx = getTenantContext();
+    if (!ctx?.userId) throw new BadRequestException('User context required');
+    return this.hrService.approveLeaveRequest(id, dto, ctx.userId);
   }
 
   // ── Helper ────────────────────────────────────────────────────────────────

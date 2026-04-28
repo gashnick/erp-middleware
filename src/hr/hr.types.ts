@@ -92,3 +92,34 @@ export interface CreateEmployeeDto {
   currency?: string;
   metadata?: Record<string, unknown>;
 }
+
+export type LeaveRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+export type LeaveType = 'annual' | 'sick' | 'personal' | 'unpaid' | 'maternity' | 'paternity';
+
+export interface LeaveRequest {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  leaveType: LeaveType;
+  startDate: Date;
+  endDate: Date;
+  days: number;
+  status: LeaveRequestStatus;
+  reason?: string;
+  approvedBy?: string;
+  approvedAt?: Date;
+  createdAt: Date;
+}
+
+export interface CreateLeaveRequestDto {
+  employeeId: string;
+  leaveType: LeaveType;
+  startDate: string;
+  endDate: string;
+  reason?: string;
+}
+
+export interface ApproveLeaveRequestDto {
+  status: 'approved' | 'rejected';
+  approverNotes?: string;
+}

@@ -8,13 +8,14 @@ import {
   IBankTransaction,
   IProduct,
   IEmployee,
+  IAsset,
   IQuarantineRecord,
   TransformResult,
   EmployeeStatus,
 } from '../interfaces/tenant-entities.interface';
 
 // 🚀 Match the type from EtlService
-type EntityType = 'invoice' | 'contact' | 'expense' | 'bank_transaction' | 'product' | 'employee';
+type EntityType = 'invoice' | 'contact' | 'expense' | 'bank_transaction' | 'product' | 'employee' | 'asset';
 
 @Injectable()
 export class EtlTransformerService {
@@ -70,6 +71,8 @@ export class EtlTransformerService {
     'on_leave',
     'terminated',
   ]);
+
+  private readonly VALID_ASSET_STATUSES = new Set(['operational', 'maintenance', 'offline', 'retired']);
 
   /**
    * Field aliases accepted for each employee column.
@@ -309,6 +312,64 @@ export class EtlTransformerService {
         name: String(normalized.name).trim(),
         price: parseFloat(normalized.price) || 0,
         stock: parseInt(String(normalized.stock), 10) || 0,
+      });
+    });
+
+    return { valid, quarantine };
+  }
+
+  // ── Assets ─────────────────────────────────────────────────────────────────
+
+  transformAssets(rawData: any[], source: string): TransformResult<IAsset> {
+    const valid: IAsset[] = [];
+    const quarantine: Partial<IQuarantineRecord>[] = [];
+
+    rawData.forEach((row, i) => {
+      const rowNum = i + 1;
+      const normalized = {
+        external_id: row.external_id ?? row.asset_id ?? row.assetId,
+        name: row.name ?? row.asset_name ?? row.assetName,
+        category: row.category ?? row.asset_category ?? row.assetCategory,
+        status: (row.status ?? 'operational').toLowerCase().trim(),
+        uptime_pct: row.uptime_pct ?? row.uptimePct ?? row.uptime,
+        last_service: row.last_service ?? row.lastService,
+        next_service: row.next_service ?? row.nextService,
+      };
+
+      const errors: string[] = [];
+      if (!normalized.external_id) errors.push(`Row ${rowNum}: Missing external_id`);
+      if (!normalized.name) errors.push(`Row ${rowNum}: Missing name`);
+      if (!normalized.category) errors.push(`Row ${rowNum}: Missing category`);
+
+      if (!this.VALID_ASSET_STATUSES.has(normalized.status)) {
+        errors.push(
+          `Row ${rowNum}: Invalid status '${normalized.status}' — must be one of: operational, maintenance, offline, retired`,
+        );
+      }
+
+      if (normalized.uptime_pct !== undefined && normalized.uptime_pct !== null) {
+        const uptime = parseFloat(normalized.uptime_pct);
+        if (isNaN(uptime) || uptime < 0 || uptime > 100) {
+          errors.push(`Row ${rowNum}: Invalid uptime_pct '${normalized.uptime_pct}' — must be 0-100`);
+        }
+      }
+
+      if (errors.length > 0) {
+        quarantine.push(this.makeQuarantine(source, row, errors, 'asset'));
+        return;
+      }
+
+      valid.push({
+        external_id: String(normalized.external_id).trim(),
+        name: String(normalized.name).trim(),
+        category: String(normalized.category).trim(),
+        status: normalized.status as 'operational' | 'maintenance' | 'offline' | 'retired',
+        uptime_pct: normalized.uptime_pct !== undefined && normalized.uptime_pct !== null
+          ? parseFloat(normalized.uptime_pct)
+          : null,
+        last_service: normalized.last_service ? new Date(normalized.last_service) : null,
+        next_service: normalized.next_service ? new Date(normalized.next_service) : null,
+        metadata: { source, sync_date: new Date().toISOString() },
       });
     });
 

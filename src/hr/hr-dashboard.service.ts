@@ -19,6 +19,9 @@ import {
   Employee,
   EmployeeFilters,
   CreateEmployeeDto,
+  LeaveRequest,
+  CreateLeaveRequestDto,
+  ApproveLeaveRequestDto,
 } from './hr.types';
 
 @Injectable()
@@ -167,6 +170,45 @@ export class HrDashboardService {
       salary, currency, created_at AS "createdAt"
   `;
 
+  private static readonly LIST_LEAVE_REQUESTS_SQL = `
+    SELECT
+      id, employee_id AS "employeeId", employee_name AS "employeeName",
+      leave_type AS "leaveType", start_date AS "startDate", end_date AS "endDate",
+      days, status, reason, approved_by AS "approvedBy",
+      approved_at AS "approvedAt", created_at AS "createdAt"
+    FROM leave_requests
+    WHERE ($1::uuid IS NULL OR employee_id = $1::uuid)
+      AND ($2::varchar IS NULL OR status = $2)
+      AND ($3::timestamp IS NULL OR start_date >= $3)
+      AND ($4::timestamp IS NULL OR start_date <= $4)
+    ORDER BY start_date DESC
+    LIMIT $5 OFFSET $6
+  `;
+
+  private static readonly CREATE_LEAVE_REQUEST_SQL = `
+    INSERT INTO leave_requests
+      (employee_id, employee_name, leave_type, start_date, end_date, days, status, reason)
+    SELECT $1, e.name, $2, $3, $4,
+      (($4::date - $3::date) + 1)::int,
+      'pending', $5
+    FROM employees e WHERE e.id = $1
+    RETURNING
+      id, employee_id AS "employeeId", employee_name AS "employeeName",
+      leave_type AS "leaveType", start_date AS "startDate", end_date AS "endDate",
+      days, status, reason, created_at AS "createdAt"
+  `;
+
+  private static readonly APPROVE_LEAVE_REQUEST_SQL = `
+    UPDATE leave_requests
+    SET status = $2, approved_by = $3, approved_at = NOW()
+    WHERE id = $1
+    RETURNING
+      id, employee_id AS "employeeId", employee_name AS "employeeName",
+      leave_type AS "leaveType", start_date AS "startDate", end_date AS "endDate",
+      days, status, reason, approved_by AS "approvedBy",
+      approved_at AS "approvedAt", created_at AS "createdAt"
+  `;
+
   constructor(private readonly tenantDb: TenantQueryRunnerService) {}
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -290,6 +332,40 @@ export class HrDashboardService {
         dto.currency ?? 'USD',
         JSON.stringify(dto.metadata ?? {}),
       ],
+    );
+    return rows[0];
+  }
+
+  async listLeaveRequests(
+    employeeId?: string,
+    status?: string,
+    from?: string,
+    to?: string,
+    limit = 50,
+    offset = 0,
+  ): Promise<LeaveRequest[]> {
+    return this.tenantDb.executeTenant<LeaveRequest>(
+      HrDashboardService.LIST_LEAVE_REQUESTS_SQL,
+      [employeeId ? employeeId : null, status ?? null, from ?? null, to ?? null, limit, offset],
+    );
+  }
+
+  async createLeaveRequest(dto: CreateLeaveRequestDto): Promise<LeaveRequest> {
+    const rows = await this.tenantDb.executeTenant<LeaveRequest>(
+      HrDashboardService.CREATE_LEAVE_REQUEST_SQL,
+      [dto.employeeId, dto.leaveType, dto.startDate, dto.endDate, dto.reason ?? null],
+    );
+    return rows[0];
+  }
+
+  async approveLeaveRequest(
+    leaveRequestId: string,
+    dto: ApproveLeaveRequestDto,
+    approverUserId: string,
+  ): Promise<LeaveRequest> {
+    const rows = await this.tenantDb.executeTenant<LeaveRequest>(
+      HrDashboardService.APPROVE_LEAVE_REQUEST_SQL,
+      [leaveRequestId, dto.status, approverUserId],
     );
     return rows[0];
   }
